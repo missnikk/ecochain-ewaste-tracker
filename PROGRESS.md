@@ -27,9 +27,9 @@ EcoChain: free local e-waste lifecycle tracker — Hardhat + Solidity contract +
 
 ## Current status
 - Mode: Fast Track (Tier 1 first: Phases 0, 1, 2, 3, then Phase 5 pages 1–9, then Phase 7)
-- Current phase: 4
-- Last completed step: Phase 3 — Local chain + deploy (contract address 0x5FbDB2315678afecb367f032d93F642f64180aa3)
-- Next step: Phase 4 — Backend (`npm run backend`)
+- Current phase: 5
+- Last completed step: Phase 4 — Backend API + SQLite + Indexer verified synced
+- Next step: Phase 5 — Frontend lifecycle test (`npm run frontend`)
 - Plan chosen (A = adapt starter, B = build from README code): **Plan A — adapt PlasticTrace starter (MIT license confirmed; 23/23 tests pass)**
 
 ## Drift check — Phase 2 (filled 2026-11-05)
@@ -50,12 +50,18 @@ EcoChain: free local e-waste lifecycle tracker — Hardhat + Solidity contract +
 3. Ingredient being worked on: I4 (Backend + SQLite + indexer).
 4. Does the planned change touch the contract of record / pinned versions / constraints? NO.
 
+## Drift check — Phase 5 (filled 2026-11-05)
+1. Final product: EcoChain — free, fully local e-waste lifecycle tracker on Hardhat/Solidity + Express/SQLite + React, 31 tests, 10 pages, 30 simulated devices.
+2. Phase 5 — DONE WHEN: the whole lifecycle for one device runs from the browser (register → pickup → collect → dispatch → receive → recycle) and Track Device shows the full timeline.
+3. Ingredient being worked on: I5 (Frontend 10 pages), I6 (Certificate hash verify), I7 (Metadata integrity check), I8 (Mass balance), I9 (Green Points).
+4. Does the planned change touch the contract of record / pinned versions / constraints? NO.
+
 ## Phase checklist
 - [x] Phase 0 — Starter evaluation (`docs/starter-evaluation.md` written; license checked; verdict recorded)
 - [x] Phase 1 — Setup (`npx hardhat --version` prints 2.22.18 / 2.29.1)
 - [x] Phase 2 — Contract + tests (`npm test`: 31 passing; `docs/test-output.txt` saved)
 - [x] Phase 3 — Local chain + deploy (contract address printed; both contractData.json files exist)
-- [ ] Phase 4 — Backend (`/api/health` chainReachable true and phase "synced"; `/api/catalog` returns 7)
+- [x] Phase 4 — Backend (`/api/health` chainReachable true and phase "synced"; `/api/catalog` returns 7)
 - [ ] Phase 5 — Frontend (whole lifecycle for one device works in the browser)
 - [ ] Phase 6 — Seed + polish + edge cases (30 devices; backend-down and node-restart tests pass)
 - [ ] Phase 7 — Evidence + documents (`docs/` complete; credits filled in README Part 16)
@@ -64,11 +70,29 @@ EcoChain: free local e-waste lifecycle tracker — Hardhat + Solidity contract +
 
 ## Ingredient checklist (what must exist at the end)
 - [x] I1 Contract of record  - [x] I2 Local chain  - [x] I3 Deploy script writes both contractData.json
-- [ ] I4 Backend + SQLite + indexer  - [ ] I5 Frontend 10 pages  - [ ] I6 Certificate hash verify
+- [x] I4 Backend + SQLite + indexer  - [ ] I5 Frontend 10 pages  - [ ] I6 Certificate hash verify
 - [ ] I7 Metadata integrity check  - [ ] I8 Mass balance  - [ ] I9 Green Points
 - [ ] I10 30 simulated devices  - [x] I11 Test evidence  - [ ] I12 docs/ evidence  - [ ] I13 README credits + LICENSE
 
 ## Evidence (paste real command output here, newest at the bottom)
+
+### Phase 4 — 2026-11-05
+```
+$ Invoke-RestMethod -Uri http://localhost:4000/api/health | ConvertTo-Json
+{
+    "backend":  "ok",
+    "chainReachable":  true,
+    "phase":  "synced",
+    "lastBlock":  6,
+    "address":  "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+    "error":  null
+}
+
+$ $cat = Invoke-RestMethod -Uri http://localhost:4000/api/catalog; Write-Output "Count: $($cat.Count)"
+Count: 7
+```
+Indexer synced to deployed contract at block 6; all 7 categories returned.  
+Tag: `phase-4-done`
 
 ### Phase 3 — 2026-11-05
 ```
