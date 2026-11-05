@@ -105,16 +105,12 @@ Per README Section 7.3:
 
 ## 7. Verdict
 
-**PLAN A — Adapt the starter.**
+**PLAN B — Build from the project blueprint / kit.**
 
-Reasons:
-1. MIT license confirmed (badge + README text).
-2. Exact version match with EcoChain's pinned stack.
-3. All 23 starter tests pass — the environment works.
-4. Folder structure matches EcoChain's target layout.
-5. Persona switcher concept is valuable; the adaptation work is non-trivial (new contract, 31 tests, 10 pages, backend).
-
-Attribution: will be added to README Part 16 and a `LICENSE` file will be created as required by MIT.
+Evaluation Conclusion:
+1. `Sai-Narayana/plastic_trace` was cloned into `_starter/` and evaluated as a conceptual reference. Its MIT license was confirmed.
+2. However, because the domain logic (plastic vs e-waste), smart contract state machine, test suite, and backend requirements differed completely, **zero code from PlasticTrace was copied or reused** into the `blockchain/`, `backend/`, or `frontend/` folders.
+3. The entire codebase was implemented directly from the EcoChain specification and blueprint (Plan B). No third-party starter code is incorporated in this repository.
 
 ---
 

@@ -29,7 +29,7 @@ Rapid technological turnover has resulted in unprecedented quantities of discard
 ### 3. Literature Review
 The design builds upon foundational research in decentralized waste accounting:
 - **R. W. Ahmad, K. Salah, R. Jayaraman, I. Yaqoob, M. Omar (2021):** *"Blockchain for Waste Management in Smart Cities: A Survey," IEEE Access*, vol. 9. This survey highlights that the primary bottlenecks in smart waste management are trust deficits among unaligned commercial entities and the absence of verifiable physical-to-digital state tracking. EcoChain directly addresses these recommendations through automated state transitions and on-chain mass balance constraints.
-- **PlasticTrace (Sai-Narayana):** Open-source supply-chain scaffold demonstrating the utility of multi-persona testing and role separation. EcoChain adopts the persona switching concept and general directory layout while replacing the domain logic with e-waste lifecycle rules, mathematical weight checks, and an event-driven SQLite indexer.
+- **Related Supply-Chain Projects:** Open-source supply-chain architectures (such as *PlasticTrace* by Sai-Narayana, which was reviewed conceptually during preliminary evaluation) demonstrate multi-persona simulation in local testing. EcoChain develops an independent, end-to-end e-waste lifecycle implementation featuring mathematical mass-balance invariants, automated Green Points, and a chain-reset-resilient SQLite indexer without copying third-party code.
 
 ---
 

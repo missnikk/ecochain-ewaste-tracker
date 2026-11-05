@@ -6,6 +6,441 @@ Stack: Ethereum-compatible local chain (Hardhat) · Solidity · React · Node/Ex
 
 ---
 
+> # ⚠️ VERSION 2 — READ PART V2 FIRST
+> This README was extended after Version 1 (phases 0 to 7) was built and pushed. **Part V2 below overrides every older Part wherever they conflict** (contract of record, roles, tests count, pages, UI, constraints, phases). Older Parts remain as background and as the source of unchanged code. Version 1 stays in git history (tag `phase-7-done`).
+
+---
+
+## PART V2 — VERSION 2 UPGRADE AND AUDIT (START HERE)
+
+### V2.0 Mission and priorities
+
+1. **First audit Version 1 honestly** (Phase U0). Do not assume the V1 report is true.
+2. **Then upgrade** to Version 2: self-service role sign-up with no admin approval, wallet identity (MetaMask + demo wallets), generated certificates with on-chain duplicate protection, redeemable Green Points, five role portals with one consistent modern UI, and a redesigned dashboard.
+3. Keep everything **free and local**. Allowed new packages (frontend only, pinned): `jspdf@2.5.2` (certificate PDF) and `lucide-react@0.383.0` (icons). MetaMask is a free browser extension. No other new dependency without asking the student.
+4. **Save quota:** read `AGENTS.md`, `PROGRESS.md` and Part V2 first. Read older Parts only when a task needs them. Keep outputs short. Use the browser tool only for UI checks that scripts cannot do. Commit, push and tag after every phase (standing git rules in `PROGRESS.md`).
+
+### V2.1 Known concerns from the V1 review (carry these into Phase U0, in this order of importance)
+
+| # | Concern | What you must do |
+| :-- | :-- | :-- |
+| 1 | **"Plan A adopted from PlasticTrace" is probably wrong.** The V1 code came from a provided code kit (Plan B). | Search the repo for `plastic`/`PlasticTrace`. Correct `PROGRESS.md`, `docs/starter-evaluation.md`, `docs/DECISIONS.md`, `docs/PROJECT-REPORT.md` and README Part 16. If no PlasticTrace code exists: say no third-party starter code was reused and PlasticTrace was only reviewed as a reference. If some exists: list the files and keep its MIT license and credit |
+| 2 | **The pages were never opened in a browser**; V1's "10 views verified" is an overclaim (there are 9 pages plus a persona switcher). | State this in the audit. After V2 is built, verify the UI with the browser tool if available, otherwise write `docs/MANUAL-TEST.md` (V2.11) for the student and mark UI items "manual test pending" until the student confirms |
+| 3 | **Some acceptance items were never tested**: backend-down behavior, metadata-integrity ✗ after a database edit, rejection messages shown on screen. | Cover them with `scripts/e2e.js` where possible (V2.10) and with `docs/MANUAL-TEST.md` otherwise |
+| 4 | **Screenshots and final files are the student's job**; the agent cannot take screenshots, and slides/report are Markdown only. | Produce `docs/SCREENSHOT-CHECKLIST.md` (exact screens and file names), `docs/PPT-OUTLINE.md` (slide-by-slide text) and keep `docs/PROJECT-REPORT.md` updated. Do not claim these are finished until the student adds screenshots |
+
+**Further overclaims found in V1 documents. Remove or correct them everywhere** (docs, report, slides, README):
+- "31 tests cover reentrancy" (there are no reentrancy tests; the contract sends no ether).
+- "A block cannot be mined if the mass balance fails" (a failing transaction reverts; the block is still mined; the chain cannot know physical weights; the recycler self-reports them, so the rule checks consistency, not truth).
+- "Full Web3 stack / consensus / mining" (the local Hardhat chain is a single development node; it has no real decentralization).
+- "Handles chain reorgs" (the indexer handles chain **resets** only).
+- "Soulbound tokens" and "EIP-Pausable" (Green Points is a non-transferable balance; Pausable is a common pattern, not an EIP).
+- "Typical GitHub repos lack mass balance" (false; similar e-waste repos exist with similar features). Do not claim worldwide uniqueness. Say the project is unique within the class and cite similar work in the literature review.
+- Any gold-yield, recycling-quota or percentage figure that has no citation. Quote the E-Waste (Management) Rules 2022 or a named report, or remove the number.
+- "Verified in a browser" unless it was actually done.
+- Any statement that the certificate proves the physical recycling happened. It proves the file is unchanged since it was issued by that wallet.
+
+### V2.2 Role model: self-service sign-up, powerful regulator
+
+**Decision (from the student): no admin approval is needed to join.** A wallet picks its own role once and can use the system immediately. This is realistic for open consortium platforms when the regulator keeps strong after-the-fact powers.
+
+| Role | How you get it | What you can do |
+| :-- | :-- | :-- |
+| Admin (Regulator) | Only the deployer wallet (set in the constructor) | Pause/unpause; **suspend or reinstate** any account; override a role (`assignRole`); full audit view and analytics. Cannot be chosen by anyone else |
+| Producer | `selfRegister(Producer)` | Register devices (products) they make; see redemptions made with them |
+| Consumer | `selfRegister(Consumer)` | **Claim** a device by ID, request pickup, earn and **redeem** Green Points, see certificates |
+| Collector | `selfRegister(Collector)` | Confirm collection, dispatch to a recycler |
+| Recycler | `selfRegister(Recycler)` | Receive, weigh, complete recycling, generate and anchor certificates |
+
+Rules: one wallet = one role, chosen once (people use different wallets for different roles, as in real life). Suspended accounts cannot act until reinstated. **State this limitation honestly in the report:** open registration means the regulator relies on suspension and off-chain license checks; a production system would add credential verification for recyclers.
+
+**Device ownership flow (replaces "producer picks the consumer's address"):** the Producer registers a device and gets a **Device ID** (shown with a printable "claim code"). The Consumer **claims** it by entering that ID, like registering a warranty. Only then can the consumer request pickup.
+
+### V2.3 Contract of record (Version 2)
+
+Replace `blockchain/contracts/EWasteTracker.sol` with this. It supersedes README Section 8.1 and the table 8.1b. Keep Solidity 0.8.24 and no imports.
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+/// @title EWasteTracker v2 - self-service roles, device claiming, certificate anchoring, redeemable points
+contract EWasteTracker {
+    enum Role { None, Admin, Producer, Consumer, Collector, Recycler }
+    enum Status { Registered, PickupRequested, Collected, InTransit, AtRecycler, Recycled }
+
+    struct Device {
+        uint256 id;
+        uint8 category;          // 1..7 = Schedule I category index
+        bytes32 metaHash;        // SHA-256 of canonical off-chain metadata
+        address producer;
+        address owner;           // address(0) until claimed by a consumer
+        address custodian;       // current holder
+        address pendingRecipient;
+        Status status;
+        uint256 receivedGrams;
+        uint256 recoveredGrams;
+        uint256 residualGrams;
+        bytes32 certificateHash; // SHA-256 of the generated recycling certificate file
+        uint256 createdAt;
+        uint256 updatedAt;
+    }
+
+    struct Entry {
+        Status status;
+        address actor;
+        uint256 timestamp;
+        string note;
+    }
+
+    uint256 public constant GRAMS_PER_POINT = 100;
+
+    address public admin;
+    bool public paused;
+    uint256 public deviceCount;
+    uint256 public totalRecoveredGrams;
+    uint256 public totalPointsRedeemed;
+
+    mapping(address => Role) public roles;
+    mapping(address => bool) public suspended;
+    mapping(address => uint256) public greenPoints;
+    mapping(address => uint256) public pointsRedeemedWith;   // producer => points redeemed with that producer
+    mapping(Status => uint256) public statusCount;
+    mapping(bytes32 => uint256) public certificateDevice;    // certificate hash => device id (0 = unused)
+    mapping(uint256 => Device) private devices;
+    mapping(uint256 => Entry[]) private history;
+
+    event RoleAssigned(address indexed account, Role role);
+    event AccountSuspended(address indexed account, bool suspended, address indexed by);
+    event DeviceRegistered(uint256 indexed deviceId, uint8 category, address indexed producer, bytes32 metaHash);
+    event DeviceClaimed(uint256 indexed deviceId, address indexed owner);
+    event StatusChanged(uint256 indexed deviceId, Status status, address indexed actor, string note);
+    event CertificateAnchored(uint256 indexed deviceId, bytes32 certificateHash, address indexed recycler, uint256 recoveredGrams);
+    event PointsAwarded(address indexed owner, uint256 indexed deviceId, uint256 points);
+    event PointsRedeemed(address indexed consumer, address indexed producer, uint256 points, string note);
+    event PausedStateChanged(bool paused, address indexed by);
+
+    modifier onlyRole(Role r) {
+        require(!suspended[msg.sender], "EWT: account suspended");
+        require(roles[msg.sender] == r, "EWT: caller lacks required role");
+        _;
+    }
+    modifier whenNotPaused() {
+        require(!paused, "EWT: system paused");
+        _;
+    }
+    modifier exists(uint256 id) {
+        require(id > 0 && id <= deviceCount, "EWT: unknown device");
+        _;
+    }
+
+    constructor() {
+        admin = msg.sender;
+        roles[msg.sender] = Role.Admin;
+        emit RoleAssigned(msg.sender, Role.Admin);
+    }
+
+    // ---------- onboarding and administration ----------
+    /// Anyone can join once, as Producer, Consumer, Collector or Recycler (no admin approval).
+    function selfRegister(Role role) external whenNotPaused {
+        require(!suspended[msg.sender], "EWT: account suspended");
+        require(roles[msg.sender] == Role.None, "EWT: already registered");
+        require(
+            role == Role.Producer || role == Role.Consumer || role == Role.Collector || role == Role.Recycler,
+            "EWT: role not self-selectable"
+        );
+        roles[msg.sender] = role;
+        emit RoleAssigned(msg.sender, role);
+    }
+
+    /// Regulator override: set any account's role (including None).
+    function assignRole(address account, Role role) external onlyRole(Role.Admin) {
+        require(account != address(0), "EWT: zero address");
+        require(account != msg.sender, "EWT: admin cannot change own role");
+        roles[account] = role;
+        emit RoleAssigned(account, role);
+    }
+
+    /// Regulator power: suspend or reinstate an account.
+    function setSuspended(address account, bool state) external onlyRole(Role.Admin) {
+        require(account != address(0), "EWT: zero address");
+        require(account != msg.sender, "EWT: admin cannot suspend self");
+        suspended[account] = state;
+        emit AccountSuspended(account, state, msg.sender);
+    }
+
+    function setPaused(bool state) external onlyRole(Role.Admin) {
+        paused = state;
+        emit PausedStateChanged(state, msg.sender);
+    }
+
+    // ---------- lifecycle ----------
+    function registerDevice(uint8 category, bytes32 metaHash, string calldata note)
+        external onlyRole(Role.Producer) whenNotPaused returns (uint256 id)
+    {
+        require(category >= 1 && category <= 7, "EWT: invalid category");
+        require(metaHash != bytes32(0), "EWT: empty metadata hash");
+
+        id = ++deviceCount;
+        Device storage d = devices[id];
+        d.id = id;
+        d.category = category;
+        d.metaHash = metaHash;
+        d.producer = msg.sender;
+        d.status = Status.Registered;
+        d.createdAt = block.timestamp;
+        d.updatedAt = block.timestamp;
+
+        statusCount[Status.Registered] += 1;
+        history[id].push(Entry(Status.Registered, msg.sender, block.timestamp, note));
+
+        emit DeviceRegistered(id, category, msg.sender, metaHash);
+        emit StatusChanged(id, Status.Registered, msg.sender, note);
+    }
+
+    /// The consumer claims a registered device by its ID (like warranty registration).
+    function claimDevice(uint256 id, string calldata note)
+        external onlyRole(Role.Consumer) exists(id) whenNotPaused
+    {
+        Device storage d = devices[id];
+        require(d.status == Status.Registered, "EWT: invalid state");
+        require(d.owner == address(0), "EWT: already claimed");
+        d.owner = msg.sender;
+        d.custodian = msg.sender;
+        d.updatedAt = block.timestamp;
+        history[id].push(Entry(Status.Registered, msg.sender, block.timestamp, note));
+        emit DeviceClaimed(id, msg.sender);
+    }
+
+    function requestPickup(uint256 id, string calldata note) external exists(id) whenNotPaused {
+        require(!suspended[msg.sender], "EWT: account suspended");
+        Device storage d = devices[id];
+        require(msg.sender == d.owner, "EWT: only the device owner");
+        require(d.status == Status.Registered, "EWT: invalid state");
+        _move(d, Status.PickupRequested, note);
+    }
+
+    function confirmCollection(uint256 id, string calldata note)
+        external onlyRole(Role.Collector) exists(id) whenNotPaused
+    {
+        Device storage d = devices[id];
+        require(d.status == Status.PickupRequested, "EWT: invalid state");
+        d.custodian = msg.sender;
+        _move(d, Status.Collected, note);
+    }
+
+    function dispatchToRecycler(uint256 id, address recycler, string calldata note)
+        external onlyRole(Role.Collector) exists(id) whenNotPaused
+    {
+        Device storage d = devices[id];
+        require(d.status == Status.Collected, "EWT: invalid state");
+        require(d.custodian == msg.sender, "EWT: not the custodian");
+        require(roles[recycler] == Role.Recycler && !suspended[recycler], "EWT: recipient is not a recycler");
+        d.pendingRecipient = recycler;
+        _move(d, Status.InTransit, note);
+    }
+
+    function confirmReceipt(uint256 id, uint256 receivedGrams, string calldata note)
+        external onlyRole(Role.Recycler) exists(id) whenNotPaused
+    {
+        Device storage d = devices[id];
+        require(d.status == Status.InTransit, "EWT: invalid state");
+        require(d.pendingRecipient == msg.sender, "EWT: not the designated recycler");
+        require(receivedGrams > 0, "EWT: weight must be positive");
+        d.receivedGrams = receivedGrams;
+        d.custodian = msg.sender;
+        d.pendingRecipient = address(0);
+        _move(d, Status.AtRecycler, note);
+    }
+
+    function completeRecycling(
+        uint256 id,
+        uint256 recoveredGrams,
+        uint256 residualGrams,
+        bytes32 certificateHash,
+        string calldata note
+    ) external onlyRole(Role.Recycler) exists(id) whenNotPaused {
+        Device storage d = devices[id];
+        require(d.status == Status.AtRecycler, "EWT: invalid state");
+        require(d.custodian == msg.sender, "EWT: not the custodian");
+        require(certificateHash != bytes32(0), "EWT: certificate hash required");
+        require(certificateDevice[certificateHash] == 0, "EWT: certificate already used");
+        require(recoveredGrams + residualGrams == d.receivedGrams, "EWT: mass balance mismatch");
+
+        d.recoveredGrams = recoveredGrams;
+        d.residualGrams = residualGrams;
+        d.certificateHash = certificateHash;
+        certificateDevice[certificateHash] = id;
+        totalRecoveredGrams += recoveredGrams;
+
+        uint256 pts = recoveredGrams / GRAMS_PER_POINT;
+        greenPoints[d.owner] += pts;
+
+        _move(d, Status.Recycled, note);
+        emit CertificateAnchored(id, certificateHash, msg.sender, recoveredGrams);
+        emit PointsAwarded(d.owner, id, pts);
+    }
+
+    /// The consumer spends points with a producer (for example a discount voucher issued off-chain).
+    function redeemPoints(uint256 points, address producer, string calldata note)
+        external onlyRole(Role.Consumer) whenNotPaused
+    {
+        require(points > 0, "EWT: points must be positive");
+        require(roles[producer] == Role.Producer && !suspended[producer], "EWT: not an active producer");
+        require(greenPoints[msg.sender] >= points, "EWT: insufficient points");
+        greenPoints[msg.sender] -= points;
+        pointsRedeemedWith[producer] += points;
+        totalPointsRedeemed += points;
+        emit PointsRedeemed(msg.sender, producer, points, note);
+    }
+
+    // ---------- views ----------
+    function getDevice(uint256 id) external view exists(id) returns (Device memory) {
+        return devices[id];
+    }
+
+    function getHistory(uint256 id) external view exists(id) returns (Entry[] memory) {
+        return history[id];
+    }
+
+    function verifyCertificate(uint256 id, bytes32 fileHash) external view exists(id) returns (bool) {
+        Device storage d = devices[id];
+        return d.status == Status.Recycled && d.certificateHash == fileHash;
+    }
+
+    function verifyMetadata(uint256 id, bytes32 metaHash) external view exists(id) returns (bool) {
+        return devices[id].metaHash == metaHash;
+    }
+
+    // ---------- internal ----------
+    function _move(Device storage d, Status next, string memory note) internal {
+        statusCount[d.status] -= 1;
+        statusCount[next] += 1;
+        d.status = next;
+        d.updatedAt = block.timestamp;
+        history[d.id].push(Entry(next, msg.sender, block.timestamp, note));
+        emit StatusChanged(d.id, next, msg.sender, note);
+    }
+}
+```
+
+Enum values: **Role** None 0, Admin 1, Producer 2, Consumer 3, Collector 4, Recycler 5. **Status** Registered 0 … Recycled 5. If the compiler reports "Stack too deep", add `viaIR: true` to the Solidity settings (playbook), do not restructure.
+
+**Changes from V1 that the rest of the code must follow:** `registerDevice` no longer takes an owner; new `claimDevice`; new `selfRegister`, `setSuspended`, `redeemPoints`, `certificateDevice`; `DeviceRegistered` no longer has `owner` (it has `producer`); new events `DeviceClaimed`, `AccountSuspended`, `PointsRedeemed`; revert strings added: `EWT: account suspended`, `EWT: already registered`, `EWT: role not self-selectable`, `EWT: already claimed`, `EWT: certificate already used`, `EWT: points must be positive`, `EWT: not an active producer`, `EWT: insufficient points`, `EWT: admin cannot suspend self`.
+
+### V2.4 The certificate, end to end (explain this clearly in the UI, report and slides)
+
+**Real-world purpose:** under EPR, a producer must show the regulator proof that devices were recycled. The recycler issues a recycling certificate. Danger: forged, edited or reused certificates.
+
+**What EcoChain does (the app generates the certificate; the user never needs an outside PDF):**
+1. The Recycler weighs the device (`confirmReceipt`), then enters recovered and residual grams in the **Process & certify** screen.
+2. On **Generate certificate & complete recycling** the app builds a **PDF certificate once** with jsPDF (certificate number `ECO-<deviceId>`, device name/brand/model from the saved metadata, category, producer, owner, collector, recycler wallet addresses, received/recovered/residual grams, issue date and time, contract address, chain ID, and the sentence "Verify this file at the EcoChain Verify page").
+3. The app computes the **SHA-256 hash of those exact PDF bytes** and sends `completeRecycling(..., certificateHash, ...)`. The contract checks the mass balance, checks that the hash was **never used before** (duplicate protection), stores the hash against the device and records the recycler, time and weights.
+4. Only after the transaction succeeds, the app uploads the same bytes to the backend (`POST /api/certificates/:deviceId`, which re-hashes them and accepts them only if they equal the on-chain hash) and offers **Download certificate**. Never regenerate the PDF for download; always reuse the stored bytes (PDF metadata contains a timestamp, so a regenerated file would have a different hash).
+5. **Verify page (public, no wallet needed):** upload a certificate file; the browser computes its SHA-256; the app calls `certificateDevice(hash)`. If it returns a device ID, show ✅ with the device ID, recycler address, date and weights, read from the chain. If it returns 0, show ❌ "No certificate with this fingerprint exists on the blockchain."
+6. **Tamper demonstration:** open the certificate in a PDF editor or change one byte, then verify again: ❌.
+
+**What it proves, and what it does not (write this in the report):** it proves that this exact file was issued through this wallet at that time and that it is not a modified copy or a reuse for another device. It does **not** prove the stated weights are physically true; that needs audits or IoT weighing (future work).
+
+### V2.5 Wallet layer: MetaMask and demo wallets
+
+Create `frontend/src/wallet.jsx` with a `WalletProvider` and `useWallet()` returning `{ kind, address, role, suspended, signer, connectMetaMask, connectDemo(index), disconnect, refreshRole }`.
+
+- **MetaMask mode:** `new ethers.BrowserProvider(window.ethereum)`; request accounts; ensure chain `0x7a69` (31337) with `wallet_switchEthereumChain`, falling back to `wallet_addEthereumChain` (name "EcoChain Local", RPC `http://127.0.0.1:8545`, currency ETH 18). Listen to `accountsChanged` and `chainChanged` and refresh. If MetaMask is not installed, show a friendly note and the demo option. Map user rejection (`ACTION_REJECTED` or code 4001) to "You rejected the request in MetaMask."
+- **Demo wallet mode:** the existing `provider.getSigner(index)` approach with the node's unlocked Hardhat accounts. The picker lists accounts #0 to #9 with their current on-chain role ("Unregistered" if none). This keeps the presentation independent of MetaMask.
+- **Role detection:** after connecting, read `roles(address)` and `suspended(address)` from the chain. The role comes from the blockchain, not from a dropdown.
+- **Read-only access:** Dashboard, Track and Verify work without any wallet using the read provider.
+- `sendTx` takes the active signer from the wallet context. Keep `friendlyError` (extend it for suspended accounts and wallet rejections).
+
+**docs/METAMASK-SETUP.md** (write it): install the MetaMask extension; add network "EcoChain Local" (RPC `http://127.0.0.1:8545`, chain ID `31337`, symbol ETH); import accounts with the private keys printed by `npm run chain` (public test keys; never use them anywhere real), naming them Admin (#0), Producer (#1), Consumer (#2), Collector (#3), Recycler (#4), spare (#5); after restarting the chain use MetaMask → Settings → Advanced → **Clear activity tab data** (fixes "nonce too high"). Say plainly that demo-wallet mode is the fallback.
+
+### V2.6 UI architecture: role chooser plus five portals
+
+**Visual system (one style everywhere):** page background `#f4f7f5`; dark green sidebar `#0b3d33`; primary `#16a34a`; accent `#0ea5e9`; warning `#f59e0b`; danger `#dc2626`; cards with 12px radius and soft shadow; system font stack; status chips: Registered blue, Pickup requested amber, Collected purple, In transit orange, At recycler teal, Recycled green. Icons from `lucide-react@0.383.0`. Charts are plain SVG (no chart library). Responsive down to tablet width.
+
+**Structure:**
+- `/` **Landing / Choose your role:** hero ("Verifiable e-waste recycling"), five role cards (Consumer, Producer, Collector, Recycler, Regulator) each with icon, one-line description and "Continue"; buttons **Connect MetaMask** and **Use demo wallet**; links to public Dashboard, Track, Verify.
+- **Sign-in flow:** choose role → connect wallet → read on-chain role → (a) unregistered wallet: confirm screen "Register this wallet as <role>?" then `selfRegister` and enter the portal; (b) already that role: enter portal; (c) different role: show "This wallet is registered as <X>" with a button to its portal and a "use another wallet" option; (d) Regulator card works only for the deployer wallet. Suspended wallets see a clear "account suspended by the regulator" screen. Route guards redirect wrong roles.
+- **App shell:** left vertical sidebar with grouped navigation and icons per role, top bar with network chip, wallet address (copy button), role badge, and Disconnect.
+- **Portals and pages:**
+  - **Regulator:** Overview, Participants (from the indexed `RoleAssigned` events), Suspend/Reinstate, System control (pause/resume), Audit trail (all events with tx hashes).
+  - **Producer:** Overview, Register product (shows Device ID and printable claim code), My products, Rewards (points redeemed with me).
+  - **Consumer:** Overview (points card), Claim a device, My devices (request pickup), Rewards (redeem points to a chosen producer), My certificates.
+  - **Collector:** Pickup requests, My custody (dispatch with recycler picker).
+  - **Recycler:** Incoming, Process & certify (weights with live balance check, generate certificate and complete), Issued certificates.
+  - **Public:** Dashboard, Track (timeline, metadata integrity, certificate download), Verify.
+- Keep a visible but unobtrusive **"Try an unauthorized action"** helper on the landing/demo area so the rejection demo still works (for example a button that sends a Producer-only call from a Consumer wallet and shows the revert message).
+- Reuse the V1 logic (`chain.js`, `hash.js`, `api.js`, hooks); restyle and reorganize pages instead of rewriting working logic. Delete pages that are replaced.
+
+### V2.7 Dashboard redesign (public page, also the Regulator overview)
+
+Top row of **KPI cards with icons**: devices registered, devices recycled (%), material recovered (kg), Green Points issued vs redeemed. Then: a **donut chart** of devices by stage; a **pipeline** strip showing counts per stage; a **bar chart** of devices by category (with category names); a **line chart** of registrations and recycled per day; **Top recyclers** by recovered kg; **Recent activity** feed (last 10 events: icon, text, actor, time, tx hash prefix). All numbers come from the contract counters where possible and from `/api/analytics` otherwise. It must degrade gracefully with the backend offline (show the chain-based cards and a small note).
+
+### V2.8 Backend changes
+
+- Indexer must handle the V2 events: `DeviceRegistered` (producer, no owner), `DeviceClaimed` (sets owner), `StatusChanged`, `CertificateAnchored` (store hash, recycler, grams), `RoleAssigned` and `AccountSuspended` (maintain a `participants` table: address, role, suspended, updated block), `PointsAwarded`, `PointsRedeemed`. Make `devices.owner` nullable. Keep reset detection and reset-wipe behavior.
+- New table `certificates(device_id PRIMARY KEY, filename, mime, data BLOB, hash, created_at)`. Endpoints: `POST /api/certificates/:deviceId` (JSON `{filename, base64}`; compute SHA-256; accept only if it equals the on-chain `certificateHash`; raise the JSON body limit to 3 MB) and `GET /api/certificates/:deviceId` (returns the file). `GET /api/participants`. Extend `GET /api/analytics` with `kpis`, `byStatus`, `byCategory`, `perDay` (registered and recycled), `topRecyclers`, `recentActivity`.
+- Do not store personal data. Display names are out of scope.
+
+### V2.9 Seed and start scripts
+
+- `deploy.js` deploys only (the deployer becomes Admin) and writes both `contractData.json` files. It no longer assigns roles.
+- `seed.js` (simulated data, labelled as such): from separate accounts call `selfRegister` for one Producer (#1), two Consumers (#2, #6), one Collector (#3), one Recycler (#4); leave #5 and #7+ unregistered so sign-up can be demonstrated live. Then register about 30 devices, have consumers claim them, and advance them to varied stages. Seeded recycled devices use real generated certificates (or hashes of generated demo PDFs) with unique hashes.
+- Create `start-demo.bat` in the project root (Windows) that starts everything in the right order, and note in the README how to close it (close the windows). Contents:
+
+```bat
+@echo off
+cd /d "%~dp0"
+start "EcoChain chain" cmd /k npm run chain
+timeout /t 8 /nobreak >nul
+call npm run deploy
+start "EcoChain backend" cmd /k npm run backend
+timeout /t 4 /nobreak >nul
+call npm run seed
+start "EcoChain frontend" cmd /k npm run frontend
+timeout /t 5 /nobreak >nul
+start http://localhost:5173
+```
+
+**Why the site only works while things are running (explain in `docs/LIMITATIONS.md`):** this is a local prototype. The blockchain node, the backend and the front end are programs running on the laptop; the website exists only while they run. The backend checking the chain every few seconds is the event indexer working as designed. A production system would run these on servers and use a permissioned network or a public L2.
+
+### V2.10 Tests
+
+- Rewrite `blockchain/test/EWasteTracker.test.js` for the V2 contract. **At least 45 tests**, all passing, covering: self-registration (success, twice rejected, Admin/None not selectable, paused, suspended), admin override and its guards, suspension and reinstatement (blocks actions, admin cannot suspend self, non-admin rejected), registration without owner, claiming (success, second claim rejected, non-consumer rejected, unknown device), the full lifecycle (pickup requires a claim), mass balance, certificate required, **duplicate certificate rejected**, `certificateDevice` lookup, Green Points, `redeemPoints` (success, insufficient, zero, non-producer target, non-consumer caller, producer counter), history actors, statusCount, metadata verification, pause/unpause.
+- Add `blockchain/scripts/e2e.js`: a Node script that, against a running chain, backend and deployed contract, performs the whole flow including a rejected unauthorized action, a rejected mass-balance mismatch, certificate upload to the backend and lookup by hash, and prints PASS/FAIL for each step. Add a root script `"e2e"`.
+- Backend-down and metadata-tamper checks: script them where possible (stop calling the backend and confirm chain reads still work; edit a metadata row in SQLite and confirm the integrity comparison reports a mismatch).
+
+### V2.11 Documents the agent must produce
+
+- `docs/AUDIT-V1.md` (Phase U0): table of ingredients I1–I13 and every V1 claim → status (done / partial / missing / overclaim) with evidence.
+- `docs/MANUAL-TEST.md`: a step-by-step test the **student** will run, written after the UI exists using the **real on-screen labels** (verify them in the code or browser; never invent labels). It must cover: wallet connect (demo and MetaMask), self sign-up for each role, the complete device cycle (register, claim, pickup, collect, dispatch, receive, mismatch rejected, certificate generated and anchored, points awarded), certificate download, verify ✅ and ❌ after tampering, duplicate certificate rejection, redeeming points, suspension by the regulator, pause, track with metadata integrity, backend-down behavior, and chain-restart recovery.
+- `docs/SCREENSHOT-CHECKLIST.md`, `docs/PPT-OUTLINE.md`, `docs/METAMASK-SETUP.md`, `docs/LIMITATIONS.md`, updated `docs/architecture.md`, `docs/PROJECT-REPORT.md` and `docs/PRESENTATION-SLIDES.md` (V2 features, honest claims from V2.1, certificate explanation V2.4, role model V2.2, related-work section citing similar GitHub projects honestly, a clear security/limits section).
+- Update README Part 16 credits (concern 1) and `PROGRESS.md`.
+
+### V2.12 Upgrade phases (each ends with commit, push and tag; each has a DONE WHEN)
+
+| Phase | Work | DONE WHEN |
+| :-- | :-- | :-- |
+| **U0 Audit** | Run the audit in V2.1 against the real repo and docs; write `docs/AUDIT-V1.md`; fix credits and every overclaim; tag `v1-audited` | `docs/AUDIT-V1.md` exists, no `plastic` credit error remains, overclaims removed |
+| **U1 Contract V2 + tests** | Replace the contract (V2.3), update `deploy.js`, rewrite tests (V2.10) | `npm test` shows ≥ 45 passing; output saved to `docs/test-output.txt` |
+| **U2 Backend V2** | V2.8, seed V2.9 backend side | `/api/health` synced; `/api/participants` and `/api/analytics` return the new fields; certificate endpoints validate hashes |
+| **U3 Wallet layer** | V2.5 | Demo wallet connects and role is read from the chain; MetaMask path implemented (student verifies with MetaMask) |
+| **U4 UI shell, role chooser, five portals** | V2.6 using existing logic | Full lifecycle works through the five portals with route guards |
+| **U5 Certificate generation + Verify** | V2.4 (jsPDF, upload, download, lookup by hash) | A generated certificate verifies ✅; a one-byte change gives ❌; reuse of the same hash is rejected |
+| **U6 Dashboard** | V2.7 | All cards and charts render with seeded data and without the backend |
+| **U7 Finish** | `start-demo.bat`, `seed.js`, `e2e.js`, all docs in V2.11, final audit against the Definition of Done and V2.1 | `npm run e2e` all PASS; docs complete; tag `v2-done` |
+
+After U7, **stop** and tell the student: run `docs/MANUAL-TEST.md`, take screenshots per `docs/SCREENSHOT-CHECKLIST.md`, and paste the slides/report text into PowerPoint/Word. Do not claim UI verification until the student confirms or the browser tool actually performed it.
+
+### V2.13 Constraint updates (these override Part 0 and the North Star where they differ)
+
+- Contract of record is the **V2 contract (V2.3)**. Tests, backend, frontend and docs follow it. Pinned versions unchanged except Hardhat **2.29.1** (already in use).
+- New allowed frontend packages: `jspdf@2.5.2`, `lucide-react@0.383.0`. Everything else in the "forbidden" list still applies. MetaMask is allowed and expected (with demo-wallet fallback).
+- Free and local remains absolute. No hosting, no IPFS, no testnet.
+- Never claim anything in the V2.1 overclaim list. When in doubt, state the limitation.
+
+---
+
 ## ⭐ NORTH STAR — THE LOCKED GOAL
 
 > **Re-read this section (and `AGENTS.md`) at the start of every phase, after every error, and whenever you feel unsure.** It is the whole project in one page. Everything else in this README serves it. This is the "recipe card": the dish never changes, so a missing ingredient means *go and get the ingredient*, never *make a different dish*.
@@ -699,7 +1134,7 @@ async function main() {
     deployBlock: receipt.blockNumber,
   };
 
-  for (const rel of ["../frontend/src/contracts", "../backend/src"]) {
+  for (const rel of ["../../frontend/src/contracts", "../../backend/src"]) {
     const dir = path.join(__dirname, rel);
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, "contractData.json"), JSON.stringify(data, null, 2));
@@ -1913,7 +2348,6 @@ Screenshots of every page and each rejected transaction · `test-output.txt` · 
 
 - Reference paper: R. W. Ahmad, K. Salah, R. Jayaraman, I. Yaqoob, M. Omar, "Blockchain for Waste Management in Smart Cities: A Survey," *IEEE Access*, vol. 9, 2021 (IEEE Xplore document 9540705).
 - Open-source libraries: Hardhat, ethers.js, React, Vite, Express, better-sqlite3, each under its own license.
-- **Starter repository (fill in if used):** name / URL / license / what was reused / what was changed. Example for an MIT-licensed starter:
-  > "Project scaffolding (Hardhat/React folder layout and persona-switcher idea) is adapted from *PlasticTrace* by Sai-Narayana (MIT License, https://github.com/Sai-Narayana/plastic_trace). The EcoChain contract, backend, indexer, catalog, certificate and metadata hashing, Green Points and tests were developed by our group."
+- **Third-party starter code:** None reused. *PlasticTrace* by Sai-Narayana (MIT License, https://github.com/Sai-Narayana/plastic_trace) was evaluated as a conceptual reference during initial research, but all smart contract code, backend indexer logic, and frontend components were written directly for EcoChain from the project specification.
 - This project is released under the MIT License. Keep any third-party `LICENSE` text and copyright notices that apply.
 - Group 15: Sohan Kateja, Rakshit Golhar, Nikita Khushalani.

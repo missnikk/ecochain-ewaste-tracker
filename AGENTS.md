@@ -4,6 +4,8 @@ This file is short on purpose. The full blueprint is `README.md`. This file neve
 
 ## 1. THE DISH (final product — never change it)
 
+> **VERSION 2 is current.** README **Part V2** is the active spec and overrides older parts wherever they conflict (contract of record, roles, UI, tests, phases). Start with Phase U0 (audit), then U1 to U7. Version 1 is in git history (tag `phase-7-done`).
+
 **EcoChain** is a free, fully local web app that tracks an e-waste device through six states on a local Ethereum-compatible blockchain:
 
 `Registered → PickupRequested → Collected → InTransit → AtRecycler → Recycled`
@@ -18,8 +20,8 @@ This file is short on purpose. The full blueprint is `README.md`. This file neve
 
 1. **Everything free and local.** No paid or cloud service, API key, account, faucet, public testnet, Docker, IPFS service, Infura/Alchemy, MongoDB Atlas, Firebase, Supabase.
 2. **Pinned versions only** (README Section 4.4): Node 22 LTS, Hardhat 2.29.1, hardhat-toolbox 5.0.0, Solidity 0.8.24, ethers 6.13.5, React 18.3.1, Vite 5, better-sqlite3 11, Express 4. Never upgrade. Never use Hardhat 3, ethers v5, React 19.
-3. **Plain JavaScript (CommonJS in blockchain/ and backend/), plain CSS.** No TypeScript, no Tailwind, no UI or chart library, no OpenZeppelin imports.
-4. **The contract in README 8.1 is the contract of record.** Do not rename functions, change signatures, change revert strings or change the lifecycle. If a change is truly required, change contract + tests + backend + frontend together and log why in `docs/DECISIONS.md`.
+3. **Plain JavaScript (CommonJS in blockchain/ and backend/), plain CSS.** No TypeScript, no Tailwind, no chart library, no OpenZeppelin imports. **Only two extra frontend packages are allowed in V2: `jspdf@2.5.2` (certificate PDF) and `lucide-react@0.383.0` (icons).** MetaMask (browser extension) is allowed and expected, with a demo-wallet fallback.
+4. **The V2 contract in README Section V2.3 is the contract of record (it supersedes 8.1).** Do not rename functions, change signatures, change revert strings or change the lifecycle. If a change is truly required, change contract + tests + backend + frontend together and log why in `docs/DECISIONS.md`.
 5. **No private keys in code.** The frontend signs with `provider.getSigner(index)`. The backend never sends transactions.
 6. **Honest output.** Never fake test results, hashes or screenshots. Seed data is labelled "simulated". Never claim a testnet/mainnet deployment.
 7. **Attribution.** If code is reused from another repo, keep its LICENSE and credit it in README Part 16.
@@ -53,7 +55,7 @@ Truffle, Ganache, Foundry, Hyperledger, Remix-only workflows, Next.js, TypeScrip
 
 ## 7. WORKING RULES
 
-- Work phase by phase (README Part 10). Do not start a phase before the previous DONE WHEN passes.
+- Work phase by phase (README V2.12: U0 audit, U1 contract + tests, U2 backend, U3 wallet, U4 UI portals, U5 certificates, U6 dashboard, U7 finish). Do not start a phase before the previous DONE WHEN passes.
 - Never say "done" without running the check and pasting its **real output** into `PROGRESS.md`.
 - Update `PROGRESS.md` after every step (it is the memory when the chat context resets).
 - Commit after each phase: `phase-N: what was done`.
@@ -63,5 +65,9 @@ Truffle, Ganache, Foundry, Hyperledger, Remix-only workflows, Next.js, TypeScrip
 
 ## 8. STARTING / RESUMING
 
-- New task: read this file → `PROGRESS.md` → README Parts 0, North Star, 7 → continue from the first unchecked item.
+- New task: read this file → `PROGRESS.md` → README Part V2 (and older Parts only when needed) → continue from the first unchecked item.
 - Resuming after a context reset: read `PROGRESS.md`, run the last DONE WHEN check to see the real state, continue from there. Do not redo finished phases.
+
+## 9. NEVER CLAIM (honesty list)
+
+No claims of: reentrancy tests, mining/consensus as a project concept, reorg handling (only resets), soulbound tokens, EIP-Pausable, worldwide uniqueness, uncited statistics, "verified in browser" unless actually done, or a third-party starter being used when it was not. The certificate proves a file is unchanged and was issued by a wallet; it does not prove physical recycling.

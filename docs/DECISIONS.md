@@ -4,11 +4,11 @@ This log documents all architectural decisions, modifications, and rationales fo
 
 ---
 
-### D-01: Starter Scaffold Selection (Plan A)
-- **Date:** 2026-11-05
-- **Decision:** Selected Plan A (adapting `Sai-Narayana/plastic_trace` folder layout and persona-switcher pattern).
-- **Rationale:** License confirmed MIT; verified test suite compiled with Solidity 0.8.24 cleanly; eliminated boilerplate overhead while writing 100% domain-specific EcoChain smart contract logic (`EWasteTracker.sol`), Express indexer, and 10 React views.
-- **Reference:** `docs/starter-evaluation.md`
+### D-01: Implementation Strategy (Plan B — Specification-Driven Build)
+- **Date:** 2026-11-05 (Updated 2026-11-06)
+- **Decision:** Adopted Plan B (building directly from the EcoChain specification and provided kit).
+- **Rationale:** During Phase 0 evaluation, `Sai-Narayana/plastic_trace` was cloned into a temporary folder to evaluate as a reference. However, zero code from PlasticTrace was copied or reused into the active codebase. All smart contract logic (`EWasteTracker.sol`), Express indexer, and React components were written cleanly to specification for EcoChain.
+- **Reference:** `docs/starter-evaluation.md`, `docs/AUDIT-V1.md`
 
 ---
 
