@@ -1,4 +1,3 @@
-
 > ecochain@1.0.0 test
 > npm --prefix blockchain test
 
@@ -8,44 +7,70 @@
 
 
 
-  EWasteTracker
-    Roles
-      √ deployer is admin (466ms)
-      √ admin can assign a role and event is emitted
-      √ non-admin cannot assign roles
-      √ zero address is rejected
+  EWasteTracker v2
+    Constructor & Roles
+      √ deployer is admin (48ms)
+      √ unregistered account has Role.None (0)
+    Self Registration
+      √ account can self-register as Producer (41ms)
+      √ account can self-register as Consumer (39ms)
+      √ account can self-register as Collector
+      √ account can self-register as Recycler
+      √ self-registering twice is rejected (63ms)
+      √ cannot self-register as Admin (1)
+      √ cannot self-register as None (0)
+      √ self-registration reverts when system is paused
+      √ suspended account cannot self-register
+    Admin Overrides & Governance
+      √ admin can assign any role
+      √ admin can reset an account's role to None
+      √ assigning role to zero address reverts
       √ admin cannot change own role
-    Registration
-      √ producer registers a device and event is emitted
-      √ non-producer cannot register
-      √ invalid category is rejected (0 and 8)
-      √ empty metadata hash is rejected
-      √ owner must be a registered consumer
-      √ device IDs increment
-    Lifecycle
-      √ full happy path ends in Recycled with 6 history entries
-      √ only the owner can request pickup
-      √ collection before pickup request is rejected
-      √ dispatch only by the current custodian
-      √ dispatch to a non-recycler is rejected
-      √ only the designated recycler can confirm receipt
-      √ skipping a stage is rejected
-      √ zero received weight is rejected
-      √ unknown device ID is rejected
-    Recycling
-      √ mass balance mismatch is rejected
-      √ exact mass balance is accepted and totals update
-      √ certificate hash is required
-      √ Green Points equal recovered grams / 100
-      √ verifyCertificate is true only for the right hash after recycling
-      √ history records the correct actors in order
-      √ statusCount tracks transitions
+      √ non-admin cannot assign roles
+      √ admin can suspend and reinstate an account (132ms)
+      √ suspension blocks registered user from acting
+      √ admin cannot suspend self
+      √ suspending zero address is rejected
+      √ non-admin cannot suspend accounts
+    Device Registration (Producer)
+      √ producer registers device without specifying owner (150ms)
+      √ device IDs increment monotonically
+      √ invalid category 0 or 8 reverts
+      √ empty metadata hash reverts
+      √ non-producer cannot register device
+    Device Claiming (Consumer)
+      √ consumer successfully claims an unclaimed device (72ms)
+      √ claiming an already claimed device reverts
+      √ non-consumer cannot claim a device
+      √ claiming an unknown device reverts
+      √ claiming a device not in Registered status reverts
+    Full Lifecycle Transitions
+      √ full happy path: Registered -> Recycled with history and statusCount (449ms)
+      √ pickup cannot be requested without claiming first
+      √ only owner can request pickup
+      √ confirmCollection before pickup request reverts
+      √ dispatch by non-custodian reverts
+      √ dispatch to non-recycler reverts
+      √ confirmReceipt by non-designated recycler reverts (44ms)
+      √ confirmReceipt with zero weight reverts
+    Recycling Validation & Certificate Anchoring
+      √ mass balance mismatch reverts
+      √ empty certificate hash reverts
+      √ duplicate certificate hash is rejected (45ms)
+      √ certificateDevice maps certificate hash to device id
+      √ verifyCertificate returns true only for exact certificate hash after recycling
       √ verifyMetadata matches only the registered hash
-    Pause
-      √ admin pauses and registration reverts
-      √ unpausing restores operation
-      √ non-admin cannot pause
+    Green Points & Redemption
+      √ consumer successfully redeems points with active producer (71ms)
+      √ redeeming more points than balance reverts
+      √ redeeming zero points reverts
+      √ redeeming points with a non-producer reverts
+      √ redeeming points with a suspended producer reverts
+      √ non-consumer cannot redeem points
+    Pause Mechanism
+      √ admin pauses system and operations revert (60ms)
+      √ unpausing restores operations
+      √ non-admin cannot pause system
 
 
-  31 passing (685ms)
-
+  54 passing (8s)

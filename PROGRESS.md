@@ -19,9 +19,9 @@ EcoChain V2: free local e-waste lifecycle tracker — Hardhat + Solidity V2 cont
 
 ## Status
 - Version 1: built, audited, and baseline established (tag `v1-audited`).
-- Current phase: U1 (Contract V2 + tests)
-- Last completed step: Phase U0 — Audit complete (`docs/AUDIT-V1.md` written, credits corrected, overclaims purged)
-- Next step: Phase U1 — Replace contract with V2 (README Section V2.3) and rewrite test suite (≥ 45 passing tests)
+- Current phase: U2 (Backend V2)
+- Last completed step: Phase U1 — Contract V2 deployed/compiled, deploy.js updated, 54 passing tests
+- Next step: Phase U2 — Backend V2 indexer, endpoints (/api/participants, /api/certificates, /api/analytics)
 - Mode: Full V2
 
 ## Drift check — Phase U0 (filled 2026-11-06)
@@ -30,9 +30,15 @@ EcoChain V2: free local e-waste lifecycle tracker — Hardhat + Solidity V2 cont
 3. What I am working on (V2 section): README Part V2, Section V2.1 & V2.12 (Phase U0).
 4. Does my planned change touch the V2 contract of record, a pinned version or a constraint? (must be NO): NO.
 
+## Drift check — Phase U1 (filled 2026-11-06)
+1. Final product: EcoChain V2: free local e-waste lifecycle tracker — Hardhat + Solidity V2 contract (self-service roles, claim, certificate anchoring with duplicate protection, redeemable points) + Express/SQLite + React with MetaMask/demo wallets, role chooser, five portals, redesigned dashboard.
+2. Phase and its DONE WHEN: Phase U1 Contract V2 + tests. DONE WHEN: `npm test` shows ≥ 45 passing; output saved to `docs/test-output.txt`.
+3. What I am working on (V2 section): README Part V2, Section V2.3 (V2 Contract of Record), Section V2.9 (`deploy.js`), Section V2.10 (Tests).
+4. Does my planned change touch the V2 contract of record, a pinned version or a constraint? (must be NO): NO.
+
 ## V2 phase checklist
 - [x] U0 Audit (`docs/AUDIT-V1.md`, credits fixed, overclaims removed) — tag `v1-audited`
-- [ ] U1 Contract V2 + tests (≥ 45 passing; `docs/test-output.txt`) — tag `u1-done`
+- [x] U1 Contract V2 + tests (≥ 45 passing; `docs/test-output.txt`) — tag `u1-done`
 - [ ] U2 Backend V2 (events, participants, certificates, analytics) — tag `u2-done`
 - [ ] U3 Wallet layer (demo wallets + MetaMask, role from chain) — tag `u3-done`
 - [ ] U4 UI shell, role chooser, five portals — tag `u4-done`
@@ -54,6 +60,14 @@ EcoChain V2: free local e-waste lifecycle tracker — Hardhat + Solidity V2 cont
 - [ ] Paste report/slides into Word/PowerPoint; rehearse the demo twice
 
 ## Evidence (paste real command output; newest at the bottom)
+
+### Phase U1 — Contract V2 + Tests (2026-11-06)
+- Replaced `blockchain/contracts/EWasteTracker.sol` with V2 contract of record (README Section V2.3).
+- Updated `blockchain/scripts/deploy.js` to V2 specifications (deploy only, deployer is Admin, writes `contractData.json`).
+- Rewrote `blockchain/test/EWasteTracker.test.js` covering self-registration, admin override, suspension/reinstatement, device claiming, full lifecycle, mass balance invariant, certificate uniqueness and hash anchoring, Green Points awards & redemption, pause circuit-breaker.
+- Test run: **54 passing (8s)** (exceeding ≥ 45 requirement).
+- Saved output to `docs/test-output.txt`.
+- Tag: `u1-done`
 
 ### Phase U0 — Audit (2026-11-06)
 - Audited repository: `git grep -i "plastic"` verified zero source files reused third-party code.

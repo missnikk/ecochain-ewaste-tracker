@@ -1,230 +1,490 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
-const { loadFixture } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
 
-const Role = { None: 0, Admin: 1, Producer: 2, Consumer: 3, Collector: 4, Recycler: 5 };
-const Status = { Registered: 0, PickupRequested: 1, Collected: 2, InTransit: 3, AtRecycler: 4, Recycled: 5 };
-const META = ethers.sha256(ethers.toUtf8Bytes("device-metadata"));
-const CERT = ethers.sha256(ethers.toUtf8Bytes("certificate-pdf-bytes"));
-const OTHER = ethers.sha256(ethers.toUtf8Bytes("tampered-file"));
+describe("EWasteTracker v2", function () {
+  let contract;
+  let admin, producer, consumer, collector, recycler, unauthorized, consumer2, other;
+  const HASH_ZERO = "0x" + "00".repeat(32);
+  const DUMMY_HASH = "0x" + "aa".repeat(32);
+  const DUMMY_HASH2 = "0x" + "bb".repeat(32);
+  const CERT_HASH_1 = "0x" + "11".repeat(32);
+  const CERT_HASH_2 = "0x" + "22".repeat(32);
 
-async function deployFixture() {
-  const [admin, producer, consumer, collector, recycler, outsider, consumer2, collector2, recycler2] =
-    await ethers.getSigners();
-  const factory = await ethers.getContractFactory("EWasteTracker");
-  const c = await factory.deploy();
-  await c.waitForDeployment();
-  await c.assignRole(producer.address, Role.Producer);
-  await c.assignRole(consumer.address, Role.Consumer);
-  await c.assignRole(consumer2.address, Role.Consumer);
-  await c.assignRole(collector.address, Role.Collector);
-  await c.assignRole(collector2.address, Role.Collector);
-  await c.assignRole(recycler.address, Role.Recycler);
-  await c.assignRole(recycler2.address, Role.Recycler);
-  return { c, admin, producer, consumer, consumer2, collector, collector2, recycler, recycler2, outsider };
-}
+  beforeEach(async function () {
+    const signers = await ethers.getSigners();
+    [admin, producer, consumer, collector, recycler, unauthorized, consumer2, other] = signers;
 
-// Registers device #1 and moves it to the requested stage (0..5)
-async function toStage(f, stage) {
-  const { c, producer, consumer, collector, recycler } = f;
-  await c.connect(producer).registerDevice(1, META, consumer.address, "registered");
-  if (stage >= 1) await c.connect(consumer).requestPickup(1, "pickup requested");
-  if (stage >= 2) await c.connect(collector).confirmCollection(1, "collected");
-  if (stage >= 3) await c.connect(collector).dispatchToRecycler(1, recycler.address, "dispatched");
-  if (stage >= 4) await c.connect(recycler).confirmReceipt(1, 2000, "received");
-  if (stage >= 5) await c.connect(recycler).completeRecycling(1, 1500, 500, CERT, "recycled");
-}
+    const Factory = await ethers.getContractFactory("EWasteTracker");
+    contract = await Factory.deploy();
+    await contract.waitForDeployment();
+  });
 
-describe("EWasteTracker", function () {
-  describe("Roles", function () {
+  describe("Constructor & Roles", function () {
     it("deployer is admin", async function () {
-      const { c, admin } = await loadFixture(deployFixture);
-      expect(await c.admin()).to.equal(admin.address);
-      expect(await c.roles(admin.address)).to.equal(Role.Admin);
+      expect(await contract.admin()).to.equal(admin.address);
+      expect(await contract.roles(admin.address)).to.equal(1); // Role.Admin
     });
-    it("admin can assign a role and event is emitted", async function () {
-      const { c, outsider } = await loadFixture(deployFixture);
-      await expect(c.assignRole(outsider.address, Role.Consumer))
-        .to.emit(c, "RoleAssigned").withArgs(outsider.address, Role.Consumer);
-    });
-    it("non-admin cannot assign roles", async function () {
-      const { c, outsider } = await loadFixture(deployFixture);
-      await expect(c.connect(outsider).assignRole(outsider.address, Role.Admin))
-        .to.be.revertedWith("EWT: caller lacks required role");
-    });
-    it("zero address is rejected", async function () {
-      const { c } = await loadFixture(deployFixture);
-      await expect(c.assignRole(ethers.ZeroAddress, Role.Consumer)).to.be.revertedWith("EWT: zero address");
-    });
-    it("admin cannot change own role", async function () {
-      const { c, admin } = await loadFixture(deployFixture);
-      await expect(c.assignRole(admin.address, Role.None)).to.be.revertedWith("EWT: admin cannot change own role");
+
+    it("unregistered account has Role.None (0)", async function () {
+      expect(await contract.roles(unauthorized.address)).to.equal(0);
     });
   });
 
-  describe("Registration", function () {
-    it("producer registers a device and event is emitted", async function () {
-      const { c, producer, consumer } = await loadFixture(deployFixture);
-      await expect(c.connect(producer).registerDevice(1, META, consumer.address, "reg"))
-        .to.emit(c, "DeviceRegistered").withArgs(1, 1, consumer.address, producer.address, META);
-      const d = await c.getDevice(1);
-      expect(d.status).to.equal(Status.Registered);
-      expect(d.owner).to.equal(consumer.address);
+  describe("Self Registration", function () {
+    it("account can self-register as Producer", async function () {
+      await expect(contract.connect(producer).selfRegister(2))
+        .to.emit(contract, "RoleAssigned").withArgs(producer.address, 2);
+      expect(await contract.roles(producer.address)).to.equal(2);
     });
-    it("non-producer cannot register", async function () {
-      const { c, outsider, consumer } = await loadFixture(deployFixture);
-      await expect(c.connect(outsider).registerDevice(1, META, consumer.address, "x"))
-        .to.be.revertedWith("EWT: caller lacks required role");
-    });
-    it("invalid category is rejected (0 and 8)", async function () {
-      const { c, producer, consumer } = await loadFixture(deployFixture);
-      await expect(c.connect(producer).registerDevice(0, META, consumer.address, "x")).to.be.revertedWith("EWT: invalid category");
-      await expect(c.connect(producer).registerDevice(8, META, consumer.address, "x")).to.be.revertedWith("EWT: invalid category");
-    });
-    it("empty metadata hash is rejected", async function () {
-      const { c, producer, consumer } = await loadFixture(deployFixture);
-      await expect(c.connect(producer).registerDevice(1, ethers.ZeroHash, consumer.address, "x"))
-        .to.be.revertedWith("EWT: empty metadata hash");
-    });
-    it("owner must be a registered consumer", async function () {
-      const { c, producer, outsider } = await loadFixture(deployFixture);
-      await expect(c.connect(producer).registerDevice(1, META, outsider.address, "x"))
-        .to.be.revertedWith("EWT: owner must be a registered consumer");
-    });
-    it("device IDs increment", async function () {
-      const { c, producer, consumer } = await loadFixture(deployFixture);
-      await c.connect(producer).registerDevice(1, META, consumer.address, "a");
-      await c.connect(producer).registerDevice(2, META, consumer.address, "b");
-      expect(await c.deviceCount()).to.equal(2);
-      expect((await c.getDevice(2)).id).to.equal(2);
-    });
-  });
 
-  describe("Lifecycle", function () {
-    it("full happy path ends in Recycled with 6 history entries", async function () {
-      const f = await loadFixture(deployFixture);
-      await toStage(f, 5);
-      expect((await f.c.getDevice(1)).status).to.equal(Status.Recycled);
-      expect((await f.c.getHistory(1)).length).to.equal(6);
+    it("account can self-register as Consumer", async function () {
+      await expect(contract.connect(consumer).selfRegister(3))
+        .to.emit(contract, "RoleAssigned").withArgs(consumer.address, 3);
+      expect(await contract.roles(consumer.address)).to.equal(3);
     });
-    it("only the owner can request pickup", async function () {
-      const f = await loadFixture(deployFixture);
-      await toStage(f, 0);
-      await expect(f.c.connect(f.consumer2).requestPickup(1, "x")).to.be.revertedWith("EWT: only the device owner");
-    });
-    it("collection before pickup request is rejected", async function () {
-      const f = await loadFixture(deployFixture);
-      await toStage(f, 0);
-      await expect(f.c.connect(f.collector).confirmCollection(1, "x")).to.be.revertedWith("EWT: invalid state");
-    });
-    it("dispatch only by the current custodian", async function () {
-      const f = await loadFixture(deployFixture);
-      await toStage(f, 2);
-      await expect(f.c.connect(f.collector2).dispatchToRecycler(1, f.recycler.address, "x"))
-        .to.be.revertedWith("EWT: not the custodian");
-    });
-    it("dispatch to a non-recycler is rejected", async function () {
-      const f = await loadFixture(deployFixture);
-      await toStage(f, 2);
-      await expect(f.c.connect(f.collector).dispatchToRecycler(1, f.consumer2.address, "x"))
-        .to.be.revertedWith("EWT: recipient is not a recycler");
-    });
-    it("only the designated recycler can confirm receipt", async function () {
-      const f = await loadFixture(deployFixture);
-      await toStage(f, 3);
-      await expect(f.c.connect(f.recycler2).confirmReceipt(1, 2000, "x"))
-        .to.be.revertedWith("EWT: not the designated recycler");
-    });
-    it("skipping a stage is rejected", async function () {
-      const f = await loadFixture(deployFixture);
-      await toStage(f, 0);
-      await expect(f.c.connect(f.recycler).completeRecycling(1, 1, 1, CERT, "x")).to.be.revertedWith("EWT: invalid state");
-    });
-    it("zero received weight is rejected", async function () {
-      const f = await loadFixture(deployFixture);
-      await toStage(f, 3);
-      await expect(f.c.connect(f.recycler).confirmReceipt(1, 0, "x")).to.be.revertedWith("EWT: weight must be positive");
-    });
-    it("unknown device ID is rejected", async function () {
-      const { c } = await loadFixture(deployFixture);
-      await expect(c.getDevice(99)).to.be.revertedWith("EWT: unknown device");
-    });
-  });
 
-  describe("Recycling", function () {
-    it("mass balance mismatch is rejected", async function () {
-      const f = await loadFixture(deployFixture);
-      await toStage(f, 4);
-      await expect(f.c.connect(f.recycler).completeRecycling(1, 1500, 400, CERT, "x"))
-        .to.be.revertedWith("EWT: mass balance mismatch");
+    it("account can self-register as Collector", async function () {
+      await expect(contract.connect(collector).selfRegister(4))
+        .to.emit(contract, "RoleAssigned").withArgs(collector.address, 4);
+      expect(await contract.roles(collector.address)).to.equal(4);
     });
-    it("exact mass balance is accepted and totals update", async function () {
-      const f = await loadFixture(deployFixture);
-      await toStage(f, 5);
-      const d = await f.c.getDevice(1);
-      expect(d.recoveredGrams).to.equal(1500);
-      expect(d.residualGrams).to.equal(500);
-      expect(await f.c.totalRecoveredGrams()).to.equal(1500);
-    });
-    it("certificate hash is required", async function () {
-      const f = await loadFixture(deployFixture);
-      await toStage(f, 4);
-      await expect(f.c.connect(f.recycler).completeRecycling(1, 1500, 500, ethers.ZeroHash, "x"))
-        .to.be.revertedWith("EWT: certificate hash required");
-    });
-    it("Green Points equal recovered grams / 100", async function () {
-      const f = await loadFixture(deployFixture);
-      await toStage(f, 5);
-      expect(await f.c.greenPoints(f.consumer.address)).to.equal(15);
-    });
-    it("verifyCertificate is true only for the right hash after recycling", async function () {
-      const f = await loadFixture(deployFixture);
-      await toStage(f, 4);
-      expect(await f.c.verifyCertificate(1, CERT)).to.equal(false);
-      await f.c.connect(f.recycler).completeRecycling(1, 1500, 500, CERT, "done");
-      expect(await f.c.verifyCertificate(1, CERT)).to.equal(true);
-      expect(await f.c.verifyCertificate(1, OTHER)).to.equal(false);
-    });
-    it("history records the correct actors in order", async function () {
-      const f = await loadFixture(deployFixture);
-      await toStage(f, 5);
-      const h = await f.c.getHistory(1);
-      expect(h[0].actor).to.equal(f.producer.address);
-      expect(h[1].actor).to.equal(f.consumer.address);
-      expect(h[2].actor).to.equal(f.collector.address);
-      expect(h[5].actor).to.equal(f.recycler.address);
-      expect(h[5].status).to.equal(Status.Recycled);
-    });
-    it("statusCount tracks transitions", async function () {
-      const f = await loadFixture(deployFixture);
-      await toStage(f, 5);
-      expect(await f.c.statusCount(Status.Recycled)).to.equal(1);
-      expect(await f.c.statusCount(Status.Registered)).to.equal(0);
-    });
-    it("verifyMetadata matches only the registered hash", async function () {
-      const f = await loadFixture(deployFixture);
-      await toStage(f, 0);
-      expect(await f.c.verifyMetadata(1, META)).to.equal(true);
-      expect(await f.c.verifyMetadata(1, OTHER)).to.equal(false);
-    });
-  });
 
-  describe("Pause", function () {
-    it("admin pauses and registration reverts", async function () {
-      const { c, producer, consumer } = await loadFixture(deployFixture);
-      await c.setPaused(true);
-      await expect(c.connect(producer).registerDevice(1, META, consumer.address, "x"))
+    it("account can self-register as Recycler", async function () {
+      await expect(contract.connect(recycler).selfRegister(5))
+        .to.emit(contract, "RoleAssigned").withArgs(recycler.address, 5);
+      expect(await contract.roles(recycler.address)).to.equal(5);
+    });
+
+    it("self-registering twice is rejected", async function () {
+      await contract.connect(producer).selfRegister(2);
+      await expect(contract.connect(producer).selfRegister(2))
+        .to.be.revertedWith("EWT: already registered");
+    });
+
+    it("cannot self-register as Admin (1)", async function () {
+      await expect(contract.connect(other).selfRegister(1))
+        .to.be.revertedWith("EWT: role not self-selectable");
+    });
+
+    it("cannot self-register as None (0)", async function () {
+      await expect(contract.connect(other).selfRegister(0))
+        .to.be.revertedWith("EWT: role not self-selectable");
+    });
+
+    it("self-registration reverts when system is paused", async function () {
+      await contract.connect(admin).setPaused(true);
+      await expect(contract.connect(producer).selfRegister(2))
         .to.be.revertedWith("EWT: system paused");
     });
-    it("unpausing restores operation", async function () {
-      const { c, producer, consumer } = await loadFixture(deployFixture);
-      await c.setPaused(true);
-      await c.setPaused(false);
-      await expect(c.connect(producer).registerDevice(1, META, consumer.address, "x")).to.not.be.reverted;
+
+    it("suspended account cannot self-register", async function () {
+      await contract.connect(admin).setSuspended(other.address, true);
+      await expect(contract.connect(other).selfRegister(3))
+        .to.be.revertedWith("EWT: account suspended");
     });
-    it("non-admin cannot pause", async function () {
-      const { c, outsider } = await loadFixture(deployFixture);
-      await expect(c.connect(outsider).setPaused(true)).to.be.revertedWith("EWT: caller lacks required role");
+  });
+
+  describe("Admin Overrides & Governance", function () {
+    it("admin can assign any role", async function () {
+      await expect(contract.connect(admin).assignRole(producer.address, 2))
+        .to.emit(contract, "RoleAssigned").withArgs(producer.address, 2);
+      expect(await contract.roles(producer.address)).to.equal(2);
+    });
+
+    it("admin can reset an account's role to None", async function () {
+      await contract.connect(producer).selfRegister(2);
+      await contract.connect(admin).assignRole(producer.address, 0);
+      expect(await contract.roles(producer.address)).to.equal(0);
+    });
+
+    it("assigning role to zero address reverts", async function () {
+      await expect(contract.connect(admin).assignRole(ethers.ZeroAddress, 2))
+        .to.be.revertedWith("EWT: zero address");
+    });
+
+    it("admin cannot change own role", async function () {
+      await expect(contract.connect(admin).assignRole(admin.address, 2))
+        .to.be.revertedWith("EWT: admin cannot change own role");
+    });
+
+    it("non-admin cannot assign roles", async function () {
+      await expect(contract.connect(unauthorized).assignRole(other.address, 2))
+        .to.be.revertedWith("EWT: caller lacks required role");
+    });
+
+    it("admin can suspend and reinstate an account", async function () {
+      await expect(contract.connect(admin).setSuspended(producer.address, true))
+        .to.emit(contract, "AccountSuspended").withArgs(producer.address, true, admin.address);
+      expect(await contract.suspended(producer.address)).to.be.true;
+
+      await expect(contract.connect(admin).setSuspended(producer.address, false))
+        .to.emit(contract, "AccountSuspended").withArgs(producer.address, false, admin.address);
+      expect(await contract.suspended(producer.address)).to.be.false;
+    });
+
+    it("suspension blocks registered user from acting", async function () {
+      await contract.connect(producer).selfRegister(2);
+      await contract.connect(admin).setSuspended(producer.address, true);
+      await expect(contract.connect(producer).registerDevice(1, DUMMY_HASH, "new item"))
+        .to.be.revertedWith("EWT: account suspended");
+    });
+
+    it("admin cannot suspend self", async function () {
+      await expect(contract.connect(admin).setSuspended(admin.address, true))
+        .to.be.revertedWith("EWT: admin cannot suspend self");
+    });
+
+    it("suspending zero address is rejected", async function () {
+      await expect(contract.connect(admin).setSuspended(ethers.ZeroAddress, true))
+        .to.be.revertedWith("EWT: zero address");
+    });
+
+    it("non-admin cannot suspend accounts", async function () {
+      await expect(contract.connect(unauthorized).setSuspended(producer.address, true))
+        .to.be.revertedWith("EWT: caller lacks required role");
+    });
+  });
+
+  describe("Device Registration (Producer)", function () {
+    beforeEach(async function () {
+      await contract.connect(producer).selfRegister(2);
+    });
+
+    it("producer registers device without specifying owner", async function () {
+      const tx = await contract.connect(producer).registerDevice(1, DUMMY_HASH, "Manufactured");
+      await expect(tx).to.emit(contract, "DeviceRegistered").withArgs(1, 1, producer.address, DUMMY_HASH);
+      await expect(tx).to.emit(contract, "StatusChanged").withArgs(1, 0, producer.address, "Manufactured");
+
+      const dev = await contract.getDevice(1);
+      expect(dev.id).to.equal(1);
+      expect(dev.category).to.equal(1);
+      expect(dev.metaHash).to.equal(DUMMY_HASH);
+      expect(dev.producer).to.equal(producer.address);
+      expect(dev.owner).to.equal(ethers.ZeroAddress);
+      expect(dev.status).to.equal(0); // Registered
+      expect(await contract.deviceCount()).to.equal(1);
+      expect(await contract.statusCount(0)).to.equal(1);
+    });
+
+    it("device IDs increment monotonically", async function () {
+      await contract.connect(producer).registerDevice(1, DUMMY_HASH, "Dev 1");
+      await contract.connect(producer).registerDevice(2, DUMMY_HASH2, "Dev 2");
+      expect(await contract.deviceCount()).to.equal(2);
+    });
+
+    it("invalid category 0 or 8 reverts", async function () {
+      await expect(contract.connect(producer).registerDevice(0, DUMMY_HASH, "bad"))
+        .to.be.revertedWith("EWT: invalid category");
+      await expect(contract.connect(producer).registerDevice(8, DUMMY_HASH, "bad"))
+        .to.be.revertedWith("EWT: invalid category");
+    });
+
+    it("empty metadata hash reverts", async function () {
+      await expect(contract.connect(producer).registerDevice(1, HASH_ZERO, "bad"))
+        .to.be.revertedWith("EWT: empty metadata hash");
+    });
+
+    it("non-producer cannot register device", async function () {
+      await expect(contract.connect(unauthorized).registerDevice(1, DUMMY_HASH, "hack"))
+        .to.be.revertedWith("EWT: caller lacks required role");
+    });
+  });
+
+  describe("Device Claiming (Consumer)", function () {
+    beforeEach(async function () {
+      await contract.connect(producer).selfRegister(2);
+      await contract.connect(consumer).selfRegister(3);
+      await contract.connect(consumer2).selfRegister(3);
+      await contract.connect(producer).registerDevice(1, DUMMY_HASH, "Manufactured");
+    });
+
+    it("consumer successfully claims an unclaimed device", async function () {
+      await expect(contract.connect(consumer).claimDevice(1, "Claimed by owner"))
+        .to.emit(contract, "DeviceClaimed").withArgs(1, consumer.address);
+
+      const dev = await contract.getDevice(1);
+      expect(dev.owner).to.equal(consumer.address);
+      expect(dev.custodian).to.equal(consumer.address);
+    });
+
+    it("claiming an already claimed device reverts", async function () {
+      await contract.connect(consumer).claimDevice(1, "Claimed");
+      await expect(contract.connect(consumer2).claimDevice(1, "Steal"))
+        .to.be.revertedWith("EWT: already claimed");
+    });
+
+    it("non-consumer cannot claim a device", async function () {
+      await expect(contract.connect(unauthorized).claimDevice(1, "Claim"))
+        .to.be.revertedWith("EWT: caller lacks required role");
+    });
+
+    it("claiming an unknown device reverts", async function () {
+      await expect(contract.connect(consumer).claimDevice(999, "Claim"))
+        .to.be.revertedWith("EWT: unknown device");
+    });
+
+    it("claiming a device not in Registered status reverts", async function () {
+      await contract.connect(consumer).claimDevice(1, "Claimed");
+      await contract.connect(consumer).requestPickup(1, "Pickup");
+      await expect(contract.connect(consumer2).claimDevice(1, "Claim"))
+        .to.be.revertedWith("EWT: invalid state");
+    });
+  });
+
+  describe("Full Lifecycle Transitions", function () {
+    beforeEach(async function () {
+      await contract.connect(producer).selfRegister(2);
+      await contract.connect(consumer).selfRegister(3);
+      await contract.connect(collector).selfRegister(4);
+      await contract.connect(recycler).selfRegister(5);
+
+      await contract.connect(producer).registerDevice(1, DUMMY_HASH, "Laptop");
+      await contract.connect(consumer).claimDevice(1, "Registered owner");
+    });
+
+    it("full happy path: Registered -> Recycled with history and statusCount", async function () {
+      // 1. PickupRequested
+      await expect(contract.connect(consumer).requestPickup(1, "Pickup requested"))
+        .to.emit(contract, "StatusChanged").withArgs(1, 1, consumer.address, "Pickup requested");
+      expect((await contract.getDevice(1)).status).to.equal(1);
+      expect(await contract.statusCount(1)).to.equal(1);
+
+      // 2. Collected
+      await expect(contract.connect(collector).confirmCollection(1, "Collected"))
+        .to.emit(contract, "StatusChanged").withArgs(1, 2, collector.address, "Collected");
+      const dev2 = await contract.getDevice(1);
+      expect(dev2.status).to.equal(2);
+      expect(dev2.custodian).to.equal(collector.address);
+
+      // 3. InTransit
+      await expect(contract.connect(collector).dispatchToRecycler(1, recycler.address, "Dispatched"))
+        .to.emit(contract, "StatusChanged").withArgs(1, 3, collector.address, "Dispatched");
+      const dev3 = await contract.getDevice(1);
+      expect(dev3.status).to.equal(3);
+      expect(dev3.pendingRecipient).to.equal(recycler.address);
+
+      // 4. AtRecycler
+      await expect(contract.connect(recycler).confirmReceipt(1, 2000, "Received & weighed"))
+        .to.emit(contract, "StatusChanged").withArgs(1, 4, recycler.address, "Received & weighed");
+      const dev4 = await contract.getDevice(1);
+      expect(dev4.status).to.equal(4);
+      expect(dev4.receivedGrams).to.equal(2000);
+      expect(dev4.custodian).to.equal(recycler.address);
+      expect(dev4.pendingRecipient).to.equal(ethers.ZeroAddress);
+
+      // 5. Recycled
+      await expect(contract.connect(recycler).completeRecycling(1, 1600, 400, CERT_HASH_1, "Recycled"))
+        .to.emit(contract, "StatusChanged").withArgs(1, 5, recycler.address, "Recycled")
+        .and.to.emit(contract, "CertificateAnchored").withArgs(1, CERT_HASH_1, recycler.address, 1600)
+        .and.to.emit(contract, "PointsAwarded").withArgs(consumer.address, 1, 16);
+
+      const dev5 = await contract.getDevice(1);
+      expect(dev5.status).to.equal(5);
+      expect(dev5.recoveredGrams).to.equal(1600);
+      expect(dev5.residualGrams).to.equal(400);
+      expect(dev5.certificateHash).to.equal(CERT_HASH_1);
+      expect(await contract.totalRecoveredGrams()).to.equal(1600);
+      expect(await contract.greenPoints(consumer.address)).to.equal(16);
+
+      const hist = await contract.getHistory(1);
+      expect(hist.length).to.equal(7); // Registered (producer), Claimed (consumer), Pickup, Collected, Dispatched, Received, Recycled
+    });
+
+    it("pickup cannot be requested without claiming first", async function () {
+      await contract.connect(producer).registerDevice(1, DUMMY_HASH, "Dev 2");
+      // Device 2 is unclaimed (owner is address(0))
+      await expect(contract.connect(consumer).requestPickup(2, "Pickup"))
+        .to.be.revertedWith("EWT: only the device owner");
+    });
+
+    it("only owner can request pickup", async function () {
+      await expect(contract.connect(unauthorized).requestPickup(1, "Pickup"))
+        .to.be.revertedWith("EWT: only the device owner");
+    });
+
+    it("confirmCollection before pickup request reverts", async function () {
+      await expect(contract.connect(collector).confirmCollection(1, "Early collect"))
+        .to.be.revertedWith("EWT: invalid state");
+    });
+
+    it("dispatch by non-custodian reverts", async function () {
+      await contract.connect(consumer).requestPickup(1, "Pickup");
+      await contract.connect(collector).confirmCollection(1, "Collected");
+      await expect(contract.connect(unauthorized).dispatchToRecycler(1, recycler.address, "Dispatch"))
+        .to.be.revertedWith("EWT: caller lacks required role");
+    });
+
+    it("dispatch to non-recycler reverts", async function () {
+      await contract.connect(consumer).requestPickup(1, "Pickup");
+      await contract.connect(collector).confirmCollection(1, "Collected");
+      await expect(contract.connect(collector).dispatchToRecycler(1, unauthorized.address, "Dispatch"))
+        .to.be.revertedWith("EWT: recipient is not a recycler");
+    });
+
+    it("confirmReceipt by non-designated recycler reverts", async function () {
+      const [, , , , , , , otherRecycler] = await ethers.getSigners();
+      await contract.connect(otherRecycler).selfRegister(5);
+
+      await contract.connect(consumer).requestPickup(1, "Pickup");
+      await contract.connect(collector).confirmCollection(1, "Collected");
+      await contract.connect(collector).dispatchToRecycler(1, recycler.address, "Dispatch");
+
+      await expect(contract.connect(otherRecycler).confirmReceipt(1, 1000, "Weighed"))
+        .to.be.revertedWith("EWT: not the designated recycler");
+    });
+
+    it("confirmReceipt with zero weight reverts", async function () {
+      await contract.connect(consumer).requestPickup(1, "Pickup");
+      await contract.connect(collector).confirmCollection(1, "Collected");
+      await contract.connect(collector).dispatchToRecycler(1, recycler.address, "Dispatch");
+
+      await expect(contract.connect(recycler).confirmReceipt(1, 0, "Weighed"))
+        .to.be.revertedWith("EWT: weight must be positive");
+    });
+  });
+
+  describe("Recycling Validation & Certificate Anchoring", function () {
+    beforeEach(async function () {
+      await contract.connect(producer).selfRegister(2);
+      await contract.connect(consumer).selfRegister(3);
+      await contract.connect(collector).selfRegister(4);
+      await contract.connect(recycler).selfRegister(5);
+
+      await contract.connect(producer).registerDevice(1, DUMMY_HASH, "Phone");
+      await contract.connect(consumer).claimDevice(1, "My phone");
+      await contract.connect(consumer).requestPickup(1, "Pickup");
+      await contract.connect(collector).confirmCollection(1, "Collected");
+      await contract.connect(collector).dispatchToRecycler(1, recycler.address, "Dispatched");
+      await contract.connect(recycler).confirmReceipt(1, 1000, "Received 1000g");
+    });
+
+    it("mass balance mismatch reverts", async function () {
+      // 800 + 100 = 900 != 1000
+      await expect(contract.connect(recycler).completeRecycling(1, 800, 100, CERT_HASH_1, "Done"))
+        .to.be.revertedWith("EWT: mass balance mismatch");
+    });
+
+    it("empty certificate hash reverts", async function () {
+      await expect(contract.connect(recycler).completeRecycling(1, 800, 200, HASH_ZERO, "Done"))
+        .to.be.revertedWith("EWT: certificate hash required");
+    });
+
+    it("duplicate certificate hash is rejected", async function () {
+      // Device 1 recycling succeeds
+      await contract.connect(recycler).completeRecycling(1, 800, 200, CERT_HASH_1, "Done");
+
+      // Device 2
+      await contract.connect(producer).registerDevice(1, DUMMY_HASH2, "Tablet");
+      await contract.connect(consumer).claimDevice(2, "My tablet");
+      await contract.connect(consumer).requestPickup(2, "Pickup");
+      await contract.connect(collector).confirmCollection(2, "Collected");
+      await contract.connect(collector).dispatchToRecycler(2, recycler.address, "Dispatched");
+      await contract.connect(recycler).confirmReceipt(2, 500, "Weighed");
+
+      // Attempting to reuse CERT_HASH_1 for Device 2 must revert
+      await expect(contract.connect(recycler).completeRecycling(2, 400, 100, CERT_HASH_1, "Reuse cert"))
+        .to.be.revertedWith("EWT: certificate already used");
+    });
+
+    it("certificateDevice maps certificate hash to device id", async function () {
+      await contract.connect(recycler).completeRecycling(1, 800, 200, CERT_HASH_1, "Done");
+      expect(await contract.certificateDevice(CERT_HASH_1)).to.equal(1);
+      expect(await contract.certificateDevice(CERT_HASH_2)).to.equal(0);
+    });
+
+    it("verifyCertificate returns true only for exact certificate hash after recycling", async function () {
+      expect(await contract.verifyCertificate(1, CERT_HASH_1)).to.be.false;
+      await contract.connect(recycler).completeRecycling(1, 800, 200, CERT_HASH_1, "Done");
+      expect(await contract.verifyCertificate(1, CERT_HASH_1)).to.be.true;
+      expect(await contract.verifyCertificate(1, CERT_HASH_2)).to.be.false;
+    });
+
+    it("verifyMetadata matches only the registered hash", async function () {
+      expect(await contract.verifyMetadata(1, DUMMY_HASH)).to.be.true;
+      expect(await contract.verifyMetadata(1, DUMMY_HASH2)).to.be.false;
+    });
+  });
+
+  describe("Green Points & Redemption", function () {
+    beforeEach(async function () {
+      await contract.connect(producer).selfRegister(2);
+      await contract.connect(consumer).selfRegister(3);
+      await contract.connect(collector).selfRegister(4);
+      await contract.connect(recycler).selfRegister(5);
+
+      await contract.connect(producer).registerDevice(1, DUMMY_HASH, "Desktop");
+      await contract.connect(consumer).claimDevice(1, "Owner");
+      await contract.connect(consumer).requestPickup(1, "Pickup");
+      await contract.connect(collector).confirmCollection(1, "Collected");
+      await contract.connect(collector).dispatchToRecycler(1, recycler.address, "Dispatched");
+      await contract.connect(recycler).confirmReceipt(1, 3000, "Weighed");
+      // Recover 2500g -> 25 points
+      await contract.connect(recycler).completeRecycling(1, 2500, 500, CERT_HASH_1, "Recycled");
+    });
+
+    it("consumer successfully redeems points with active producer", async function () {
+      expect(await contract.greenPoints(consumer.address)).to.equal(25);
+
+      await expect(contract.connect(consumer).redeemPoints(10, producer.address, "Discount voucher"))
+        .to.emit(contract, "PointsRedeemed")
+        .withArgs(consumer.address, producer.address, 10, "Discount voucher");
+
+      expect(await contract.greenPoints(consumer.address)).to.equal(15);
+      expect(await contract.pointsRedeemedWith(producer.address)).to.equal(10);
+      expect(await contract.totalPointsRedeemed()).to.equal(10);
+    });
+
+    it("redeeming more points than balance reverts", async function () {
+      await expect(contract.connect(consumer).redeemPoints(30, producer.address, "Overspend"))
+        .to.be.revertedWith("EWT: insufficient points");
+    });
+
+    it("redeeming zero points reverts", async function () {
+      await expect(contract.connect(consumer).redeemPoints(0, producer.address, "Zero"))
+        .to.be.revertedWith("EWT: points must be positive");
+    });
+
+    it("redeeming points with a non-producer reverts", async function () {
+      await expect(contract.connect(consumer).redeemPoints(5, unauthorized.address, "Voucher"))
+        .to.be.revertedWith("EWT: not an active producer");
+    });
+
+    it("redeeming points with a suspended producer reverts", async function () {
+      await contract.connect(admin).setSuspended(producer.address, true);
+      await expect(contract.connect(consumer).redeemPoints(5, producer.address, "Voucher"))
+        .to.be.revertedWith("EWT: not an active producer");
+    });
+
+    it("non-consumer cannot redeem points", async function () {
+      await expect(contract.connect(unauthorized).redeemPoints(5, producer.address, "Voucher"))
+        .to.be.revertedWith("EWT: caller lacks required role");
+    });
+  });
+
+  describe("Pause Mechanism", function () {
+    it("admin pauses system and operations revert", async function () {
+      await contract.connect(producer).selfRegister(2);
+      await expect(contract.connect(admin).setPaused(true))
+        .to.emit(contract, "PausedStateChanged").withArgs(true, admin.address);
+      expect(await contract.paused()).to.be.true;
+
+      await expect(contract.connect(producer).registerDevice(1, DUMMY_HASH, "Dev"))
+        .to.be.revertedWith("EWT: system paused");
+    });
+
+    it("unpausing restores operations", async function () {
+      await contract.connect(producer).selfRegister(2);
+      await contract.connect(admin).setPaused(true);
+      await contract.connect(admin).setPaused(false);
+      expect(await contract.paused()).to.be.false;
+
+      await expect(contract.connect(producer).registerDevice(1, DUMMY_HASH, "Dev"))
+        .to.emit(contract, "DeviceRegistered");
+    });
+
+    it("non-admin cannot pause system", async function () {
+      await expect(contract.connect(unauthorized).setPaused(true))
+        .to.be.revertedWith("EWT: caller lacks required role");
     });
   });
 });

@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-/// @title EWasteTracker - role-gated e-waste lifecycle with certificate anchoring
-/// @notice Academic prototype. Roles are enforced with a mapping and modifiers (RBAC).
+/// @title EWasteTracker v2 - self-service roles, device claiming, certificate anchoring, redeemable points
 contract EWasteTracker {
     enum Role { None, Admin, Producer, Consumer, Collector, Recycler }
     enum Status { Registered, PickupRequested, Collected, InTransit, AtRecycler, Recycled }
@@ -12,14 +11,14 @@ contract EWasteTracker {
         uint8 category;          // 1..7 = Schedule I category index
         bytes32 metaHash;        // SHA-256 of canonical off-chain metadata
         address producer;
-        address owner;           // original owner, receives Green Points
+        address owner;           // address(0) until claimed by a consumer
         address custodian;       // current holder
         address pendingRecipient;
         Status status;
         uint256 receivedGrams;
         uint256 recoveredGrams;
         uint256 residualGrams;
-        bytes32 certificateHash; // SHA-256 of the recycling certificate file
+        bytes32 certificateHash; // SHA-256 of the generated recycling certificate file
         uint256 createdAt;
         uint256 updatedAt;
     }
@@ -37,21 +36,29 @@ contract EWasteTracker {
     bool public paused;
     uint256 public deviceCount;
     uint256 public totalRecoveredGrams;
+    uint256 public totalPointsRedeemed;
 
     mapping(address => Role) public roles;
+    mapping(address => bool) public suspended;
     mapping(address => uint256) public greenPoints;
+    mapping(address => uint256) public pointsRedeemedWith;   // producer => points redeemed with that producer
     mapping(Status => uint256) public statusCount;
+    mapping(bytes32 => uint256) public certificateDevice;    // certificate hash => device id (0 = unused)
     mapping(uint256 => Device) private devices;
     mapping(uint256 => Entry[]) private history;
 
     event RoleAssigned(address indexed account, Role role);
-    event DeviceRegistered(uint256 indexed deviceId, uint8 category, address indexed owner, address indexed producer, bytes32 metaHash);
+    event AccountSuspended(address indexed account, bool suspended, address indexed by);
+    event DeviceRegistered(uint256 indexed deviceId, uint8 category, address indexed producer, bytes32 metaHash);
+    event DeviceClaimed(uint256 indexed deviceId, address indexed owner);
     event StatusChanged(uint256 indexed deviceId, Status status, address indexed actor, string note);
     event CertificateAnchored(uint256 indexed deviceId, bytes32 certificateHash, address indexed recycler, uint256 recoveredGrams);
     event PointsAwarded(address indexed owner, uint256 indexed deviceId, uint256 points);
+    event PointsRedeemed(address indexed consumer, address indexed producer, uint256 points, string note);
     event PausedStateChanged(bool paused, address indexed by);
 
     modifier onlyRole(Role r) {
+        require(!suspended[msg.sender], "EWT: account suspended");
         require(roles[msg.sender] == r, "EWT: caller lacks required role");
         _;
     }
@@ -70,12 +77,33 @@ contract EWasteTracker {
         emit RoleAssigned(msg.sender, Role.Admin);
     }
 
-    // ---------- administration ----------
+    // ---------- onboarding and administration ----------
+    /// Anyone can join once, as Producer, Consumer, Collector or Recycler (no admin approval).
+    function selfRegister(Role role) external whenNotPaused {
+        require(!suspended[msg.sender], "EWT: account suspended");
+        require(roles[msg.sender] == Role.None, "EWT: already registered");
+        require(
+            role == Role.Producer || role == Role.Consumer || role == Role.Collector || role == Role.Recycler,
+            "EWT: role not self-selectable"
+        );
+        roles[msg.sender] = role;
+        emit RoleAssigned(msg.sender, role);
+    }
+
+    /// Regulator override: set any account's role (including None).
     function assignRole(address account, Role role) external onlyRole(Role.Admin) {
         require(account != address(0), "EWT: zero address");
         require(account != msg.sender, "EWT: admin cannot change own role");
         roles[account] = role;
         emit RoleAssigned(account, role);
+    }
+
+    /// Regulator power: suspend or reinstate an account.
+    function setSuspended(address account, bool state) external onlyRole(Role.Admin) {
+        require(account != address(0), "EWT: zero address");
+        require(account != msg.sender, "EWT: admin cannot suspend self");
+        suspended[account] = state;
+        emit AccountSuspended(account, state, msg.sender);
     }
 
     function setPaused(bool state) external onlyRole(Role.Admin) {
@@ -84,15 +112,11 @@ contract EWasteTracker {
     }
 
     // ---------- lifecycle ----------
-    function registerDevice(
-        uint8 category,
-        bytes32 metaHash,
-        address owner_,
-        string calldata note
-    ) external onlyRole(Role.Producer) whenNotPaused returns (uint256 id) {
+    function registerDevice(uint8 category, bytes32 metaHash, string calldata note)
+        external onlyRole(Role.Producer) whenNotPaused returns (uint256 id)
+    {
         require(category >= 1 && category <= 7, "EWT: invalid category");
         require(metaHash != bytes32(0), "EWT: empty metadata hash");
-        require(roles[owner_] == Role.Consumer, "EWT: owner must be a registered consumer");
 
         id = ++deviceCount;
         Device storage d = devices[id];
@@ -100,8 +124,6 @@ contract EWasteTracker {
         d.category = category;
         d.metaHash = metaHash;
         d.producer = msg.sender;
-        d.owner = owner_;
-        d.custodian = owner_;
         d.status = Status.Registered;
         d.createdAt = block.timestamp;
         d.updatedAt = block.timestamp;
@@ -109,11 +131,26 @@ contract EWasteTracker {
         statusCount[Status.Registered] += 1;
         history[id].push(Entry(Status.Registered, msg.sender, block.timestamp, note));
 
-        emit DeviceRegistered(id, category, owner_, msg.sender, metaHash);
+        emit DeviceRegistered(id, category, msg.sender, metaHash);
         emit StatusChanged(id, Status.Registered, msg.sender, note);
     }
 
+    /// The consumer claims a registered device by its ID (like warranty registration).
+    function claimDevice(uint256 id, string calldata note)
+        external onlyRole(Role.Consumer) exists(id) whenNotPaused
+    {
+        Device storage d = devices[id];
+        require(d.status == Status.Registered, "EWT: invalid state");
+        require(d.owner == address(0), "EWT: already claimed");
+        d.owner = msg.sender;
+        d.custodian = msg.sender;
+        d.updatedAt = block.timestamp;
+        history[id].push(Entry(Status.Registered, msg.sender, block.timestamp, note));
+        emit DeviceClaimed(id, msg.sender);
+    }
+
     function requestPickup(uint256 id, string calldata note) external exists(id) whenNotPaused {
+        require(!suspended[msg.sender], "EWT: account suspended");
         Device storage d = devices[id];
         require(msg.sender == d.owner, "EWT: only the device owner");
         require(d.status == Status.Registered, "EWT: invalid state");
@@ -135,7 +172,7 @@ contract EWasteTracker {
         Device storage d = devices[id];
         require(d.status == Status.Collected, "EWT: invalid state");
         require(d.custodian == msg.sender, "EWT: not the custodian");
-        require(roles[recycler] == Role.Recycler, "EWT: recipient is not a recycler");
+        require(roles[recycler] == Role.Recycler && !suspended[recycler], "EWT: recipient is not a recycler");
         d.pendingRecipient = recycler;
         _move(d, Status.InTransit, note);
     }
@@ -164,11 +201,13 @@ contract EWasteTracker {
         require(d.status == Status.AtRecycler, "EWT: invalid state");
         require(d.custodian == msg.sender, "EWT: not the custodian");
         require(certificateHash != bytes32(0), "EWT: certificate hash required");
+        require(certificateDevice[certificateHash] == 0, "EWT: certificate already used");
         require(recoveredGrams + residualGrams == d.receivedGrams, "EWT: mass balance mismatch");
 
         d.recoveredGrams = recoveredGrams;
         d.residualGrams = residualGrams;
         d.certificateHash = certificateHash;
+        certificateDevice[certificateHash] = id;
         totalRecoveredGrams += recoveredGrams;
 
         uint256 pts = recoveredGrams / GRAMS_PER_POINT;
@@ -177,6 +216,19 @@ contract EWasteTracker {
         _move(d, Status.Recycled, note);
         emit CertificateAnchored(id, certificateHash, msg.sender, recoveredGrams);
         emit PointsAwarded(d.owner, id, pts);
+    }
+
+    /// The consumer spends points with a producer (for example a discount voucher issued off-chain).
+    function redeemPoints(uint256 points, address producer, string calldata note)
+        external onlyRole(Role.Consumer) whenNotPaused
+    {
+        require(points > 0, "EWT: points must be positive");
+        require(roles[producer] == Role.Producer && !suspended[producer], "EWT: not an active producer");
+        require(greenPoints[msg.sender] >= points, "EWT: insufficient points");
+        greenPoints[msg.sender] -= points;
+        pointsRedeemedWith[producer] += points;
+        totalPointsRedeemed += points;
+        emit PointsRedeemed(msg.sender, producer, points, note);
     }
 
     // ---------- views ----------
