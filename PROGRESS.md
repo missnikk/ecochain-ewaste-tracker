@@ -19,9 +19,9 @@ EcoChain V2: free local e-waste lifecycle tracker — Hardhat + Solidity V2 cont
 
 ## Status
 - Version 1: built, audited, and baseline established (tag `v1-audited`).
-- Current phase: U2 (Backend V2)
-- Last completed step: Phase U1 — Contract V2 deployed/compiled, deploy.js updated, 54 passing tests
-- Next step: Phase U2 — Backend V2 indexer, endpoints (/api/participants, /api/certificates, /api/analytics)
+- Current phase: U3 (Wallet layer)
+- Last completed step: Phase U2 — Backend V2 indexer, participants, certificates, and analytics verified
+- Next step: Phase U3 — Wallet layer (demo wallets + MetaMask, role detection from chain)
 - Mode: Full V2
 
 ## Drift check — Phase U0 (filled 2026-11-06)
@@ -36,10 +36,16 @@ EcoChain V2: free local e-waste lifecycle tracker — Hardhat + Solidity V2 cont
 3. What I am working on (V2 section): README Part V2, Section V2.3 (V2 Contract of Record), Section V2.9 (`deploy.js`), Section V2.10 (Tests).
 4. Does my planned change touch the V2 contract of record, a pinned version or a constraint? (must be NO): NO.
 
+## Drift check — Phase U2 (filled 2026-11-06)
+1. Final product: EcoChain V2: free local e-waste lifecycle tracker — Hardhat + Solidity V2 contract (self-service roles, claim, certificate anchoring with duplicate protection, redeemable points) + Express/SQLite + React with MetaMask/demo wallets, role chooser, five portals, redesigned dashboard.
+2. Phase and its DONE WHEN: Phase U2 Backend V2. DONE WHEN: `/api/health` synced; `/api/participants` and `/api/analytics` return the new fields; certificate endpoints validate hashes.
+3. What I am working on (V2 section): README Part V2, Section V2.8 (Backend changes) & Section V2.12.
+4. Does my planned change touch the V2 contract of record, a pinned version or a constraint? (must be NO): NO.
+
 ## V2 phase checklist
 - [x] U0 Audit (`docs/AUDIT-V1.md`, credits fixed, overclaims removed) — tag `v1-audited`
 - [x] U1 Contract V2 + tests (≥ 45 passing; `docs/test-output.txt`) — tag `u1-done`
-- [ ] U2 Backend V2 (events, participants, certificates, analytics) — tag `u2-done`
+- [x] U2 Backend V2 (events, participants, certificates, analytics) — tag `u2-done`
 - [ ] U3 Wallet layer (demo wallets + MetaMask, role from chain) — tag `u3-done`
 - [ ] U4 UI shell, role chooser, five portals — tag `u4-done`
 - [ ] U5 Certificate generation + Verify by file — tag `u5-done`
@@ -60,6 +66,23 @@ EcoChain V2: free local e-waste lifecycle tracker — Hardhat + Solidity V2 cont
 - [ ] Paste report/slides into Word/PowerPoint; rehearse the demo twice
 
 ## Evidence (paste real command output; newest at the bottom)
+
+### Phase U2 — Backend V2 (2026-11-06)
+- Updated SQLite database schema in `backend/src/db.js`: added `participants` and `certificates` tables; updated `devices` table to support nullable `owner`, `producer`, weights, and certificate hashes.
+- Rewrote `backend/src/indexer.js` to process V2 events: `DeviceRegistered`, `DeviceClaimed`, `StatusChanged`, `CertificateAnchored`, `RoleAssigned`, and `AccountSuspended`.
+- Extended `backend/src/index.js` with:
+  - 3MB JSON payload limit.
+  - `GET /api/participants` (returns participant list with role, status, block).
+  - `POST /api/certificates/:deviceId` with SHA-256 hash comparison against on-chain record (returns 400 on mismatch, 200 on match).
+  - `GET /api/certificates/:deviceId` (binary PDF download stream).
+  - Expanded `GET /api/analytics` returning `kpis`, `byStatus`, `byCategory`, `perDay` (registered and recycled), `topRecyclers`, and `recentActivity`.
+- Real Verification Output:
+  - `/api/health`: `chainReachable: true`, `phase: "synced"`
+  - `/api/participants`: returned registered participants (Admin, Producer, Consumer, Collector, Recycler)
+  - `/api/analytics`: returned full KPI and distribution payload
+  - `POST /api/certificates/1` bad hash returned 400; matching hash returned 200 `{ ok: true, hash: "0x48e0be19...", deviceId: 1 }`
+  - `GET /api/certificates/1` returned 200 `application/pdf` with identical bytes.
+- Tag: `u2-done`
 
 ### Phase U1 — Contract V2 + Tests (2026-11-06)
 - Replaced `blockchain/contracts/EWasteTracker.sol` with V2 contract of record (README Section V2.3).

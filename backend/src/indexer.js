@@ -16,21 +16,37 @@ function loadContractData() {
 const insertEvent = db.prepare(`INSERT OR IGNORE INTO events
   (block, tx_hash, log_index, name, device_id, actor, data, ts) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
 
+const upsertParticipant = db.prepare(`INSERT INTO participants (address, role, suspended, updated_block)
+  VALUES (?, ?, 0, ?) ON CONFLICT(address) DO UPDATE SET role = excluded.role, updated_block = excluded.updated_block`);
+
+const updateSuspended = db.prepare(`INSERT INTO participants (address, role, suspended, updated_block)
+  VALUES (?, 0, ?, ?) ON CONFLICT(address) DO UPDATE SET suspended = excluded.suspended, updated_block = excluded.updated_block`);
+
 function applyEvent(parsed, log, ts) {
   const a = parsed.args;
   const data = {};
   parsed.fragment.inputs.forEach((inp, i) => { data[inp.name] = a[i].toString(); });
   const deviceId = data.deviceId !== undefined ? Number(data.deviceId) : null;
-  const actor = data.actor || data.producer || data.recycler || data.by || data.account || null;
+  const actor = data.actor || data.producer || data.recycler || data.owner || data.by || data.account || null;
   insertEvent.run(log.blockNumber, log.transactionHash, log.index, parsed.name, deviceId, actor, JSON.stringify(data), ts);
 
   if (parsed.name === "DeviceRegistered") {
-    db.prepare("INSERT OR REPLACE INTO devices (id, category, owner, status, recovered_grams, created_block) VALUES (?, ?, ?, 0, 0, ?)")
-      .run(deviceId, Number(data.category), data.owner, log.blockNumber);
+    db.prepare(`INSERT OR REPLACE INTO devices
+      (id, category, producer, owner, status, received_grams, recovered_grams, residual_grams, certificate_hash, recycler, created_block)
+      VALUES (?, ?, ?, NULL, 0, 0, 0, 0, NULL, NULL, ?)`)
+      .run(deviceId, Number(data.category), data.producer, log.blockNumber);
+  } else if (parsed.name === "DeviceClaimed") {
+    db.prepare("UPDATE devices SET owner = ? WHERE id = ?").run(data.owner, deviceId);
   } else if (parsed.name === "StatusChanged") {
     db.prepare("UPDATE devices SET status = ? WHERE id = ?").run(Number(data.status), deviceId);
   } else if (parsed.name === "CertificateAnchored") {
-    db.prepare("UPDATE devices SET recovered_grams = ? WHERE id = ?").run(Number(data.recoveredGrams), deviceId);
+    db.prepare("UPDATE devices SET certificate_hash = ?, recycler = ?, recovered_grams = ? WHERE id = ?")
+      .run(data.certificateHash, data.recycler, Number(data.recoveredGrams), deviceId);
+  } else if (parsed.name === "RoleAssigned") {
+    upsertParticipant.run(data.account, Number(data.role), log.blockNumber);
+  } else if (parsed.name === "AccountSuspended") {
+    const isSuspended = data.suspended === "true" || data.suspended === "1" ? 1 : 0;
+    updateSuspended.run(data.account, isSuspended, log.blockNumber);
   }
 }
 
@@ -83,7 +99,7 @@ async function syncOnce() {
   status.error = null;
 }
 
-// Serialize syncs so a manual sync and the timer never overlap.
+// Serialize syncs so manual sync and timer never overlap.
 let chain = Promise.resolve();
 function syncNow() {
   chain = chain.then(syncOnce).catch((e) => { status.error = e.message; status.phase = "error"; });
