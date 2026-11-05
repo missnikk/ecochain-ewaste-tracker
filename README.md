@@ -295,7 +295,7 @@ Faculty wording "registered → collected → transferred → recycled" maps to 
 | Layer | Tool | Version |
 | :-- | :-- | :-- |
 | Runtime | Node.js LTS | **22.x** (20.x acceptable) |
-| Local blockchain | Hardhat | **2.22.18** |
+| Local blockchain | Hardhat | **2.29.1** |
 | Contract language | Solidity | **0.8.24** (no imports) |
 | Test tooling | @nomicfoundation/hardhat-toolbox | **5.0.0** |
 | Chain client | ethers | **6.13.5** |
@@ -663,7 +663,7 @@ module.exports = {
 ```
 
 `package.json` scripts: `"node": "hardhat node"`, `"compile": "hardhat compile"`, `"test": "hardhat test"`, `"deploy": "hardhat run scripts/deploy.js --network localhost"`, `"seed": "hardhat run scripts/seed.js --network localhost"`.
-Install: `npm install --save-dev hardhat@2.22.18 @nomicfoundation/hardhat-toolbox@5.0.0` (add `--legacy-peer-deps` only if npm reports a peer-dependency error).
+Install: `npm install --save-dev hardhat@2.29.1 @nomicfoundation/hardhat-toolbox@5.0.0` (do **not** use `--legacy-peer-deps` here: it skips installing the toolbox's required peer packages; if npm reports a peer conflict, see the playbook row in Part 13).
 
 ### 8.3 `blockchain/scripts/deploy.js`
 
@@ -1684,7 +1684,7 @@ Fast Track rules:
 **Phase 0 — Starter evaluation** (Part 7). *DONE WHEN:* `docs/starter-evaluation.md` exists with license, results and verdict (Plan A or Plan B).
 
 **Phase 1 — Project setup (30 min).** Create the folder structure (Part 5). In `blockchain/`: `npm init -y`, install pinned dev dependencies (Section 8.2), add `hardhat.config.js` and scripts. Add root `.gitignore`, `LICENSE` (MIT, group names), root `package.json` scripts (Section 10.2).
-*DONE WHEN:* `npx hardhat --version` prints 2.22.18.
+*DONE WHEN:* `npx hardhat --version` prints 2.29.1.
 
 **Phase 2 — Contract and tests (half a day).** Add `EWasteTracker.sol` (8.1) and the test file (8.5).
 *DONE WHEN:* `npx hardhat compile` succeeds and `npm test` shows **31 passing**. Save output: `npm test > ../docs/test-output.txt` (or copy the terminal text).
@@ -1794,7 +1794,7 @@ A fix is **allowed** only if all answers are YES: Does it keep the dish (N.1) un
 | Symptom | Likely cause | Fix | Never |
 | :-- | :-- | :-- | :-- |
 | `node: command not found` or Node is 18/24 and tools warn | Wrong or missing Node | Install Node 22 LTS, reopen the terminal, `node -v` | Upgrade packages to match a newer Node |
-| `npm ERR! ERESOLVE` in `blockchain/` | Peer-dependency strictness | Retry the same pinned install with `--legacy-peer-deps` | Install unpinned or newer versions |
+| `npm ERR! ERESOLVE` in `blockchain/` (for example hardhat-chai-matchers wants a newer hardhat) | Hardhat version does not satisfy a toolbox peer | The Hardhat pin is **2.29.1**. In `blockchain/` run `npm install --save-dev hardhat@2.29.1 @nomicfoundation/hardhat-toolbox@5.0.0`. If another peer complains, read which hardhat range it asks for and pick a Hardhat **2.x** version inside it | `--legacy-peer-deps` or `--force` (they skip needed peers and break tests); moving to Hardhat 3 |
 | `Cannot find module '@nomicfoundation/hardhat-toolbox'` | Installed in the wrong folder | `cd blockchain` and install there (not in root) | Create a second config elsewhere |
 | `HH19` / "ESM project" error | `"type": "module"` in `blockchain/package.json` | Remove it; use CommonJS | Convert Hardhat config to ESM |
 | `HH502` / cannot download compiler list | No internet on first compile | Connect to internet, rerun `npx hardhat compile` | Change the Solidity version |

@@ -1,0 +1,51 @@
+
+> ecochain@1.0.0 test
+> npm --prefix blockchain test
+
+
+> ecochain-blockchain@1.0.0 test
+> hardhat test
+
+
+
+  EWasteTracker
+    Roles
+      √ deployer is admin (466ms)
+      √ admin can assign a role and event is emitted
+      √ non-admin cannot assign roles
+      √ zero address is rejected
+      √ admin cannot change own role
+    Registration
+      √ producer registers a device and event is emitted
+      √ non-producer cannot register
+      √ invalid category is rejected (0 and 8)
+      √ empty metadata hash is rejected
+      √ owner must be a registered consumer
+      √ device IDs increment
+    Lifecycle
+      √ full happy path ends in Recycled with 6 history entries
+      √ only the owner can request pickup
+      √ collection before pickup request is rejected
+      √ dispatch only by the current custodian
+      √ dispatch to a non-recycler is rejected
+      √ only the designated recycler can confirm receipt
+      √ skipping a stage is rejected
+      √ zero received weight is rejected
+      √ unknown device ID is rejected
+    Recycling
+      √ mass balance mismatch is rejected
+      √ exact mass balance is accepted and totals update
+      √ certificate hash is required
+      √ Green Points equal recovered grams / 100
+      √ verifyCertificate is true only for the right hash after recycling
+      √ history records the correct actors in order
+      √ statusCount tracks transitions
+      √ verifyMetadata matches only the registered hash
+    Pause
+      √ admin pauses and registration reverts
+      √ unpausing restores operation
+      √ non-admin cannot pause
+
+
+  31 passing (685ms)
+

@@ -17,7 +17,7 @@ This file is short on purpose. The full blueprint is `README.md`. This file neve
 ## 2. KITCHEN RULES (hard constraints)
 
 1. **Everything free and local.** No paid or cloud service, API key, account, faucet, public testnet, Docker, IPFS service, Infura/Alchemy, MongoDB Atlas, Firebase, Supabase.
-2. **Pinned versions only** (README Section 4.4): Node 22 LTS, Hardhat 2.22.18, hardhat-toolbox 5.0.0, Solidity 0.8.24, ethers 6.13.5, React 18.3.1, Vite 5, better-sqlite3 11, Express 4. Never upgrade. Never use Hardhat 3, ethers v5, React 19.
+2. **Pinned versions only** (README Section 4.4): Node 22 LTS, Hardhat 2.29.1, hardhat-toolbox 5.0.0, Solidity 0.8.24, ethers 6.13.5, React 18.3.1, Vite 5, better-sqlite3 11, Express 4. Never upgrade. Never use Hardhat 3, ethers v5, React 19.
 3. **Plain JavaScript (CommonJS in blockchain/ and backend/), plain CSS.** No TypeScript, no Tailwind, no UI or chart library, no OpenZeppelin imports.
 4. **The contract in README 8.1 is the contract of record.** Do not rename functions, change signatures, change revert strings or change the lifecycle. If a change is truly required, change contract + tests + backend + frontend together and log why in `docs/DECISIONS.md`.
 5. **No private keys in code.** The frontend signs with `provider.getSigner(index)`. The backend never sends transactions.

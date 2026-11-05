@@ -1,7 +1,7 @@
 {
   "name": "ecochain-blockchain",
   "version": "1.0.0",
-  "description": "EcoChain smart contract and tests",
+  "private": true,
   "scripts": {
     "node": "hardhat node",
     "compile": "hardhat compile",
@@ -11,6 +11,9 @@
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
-    "hardhat": "^2.22.18"
+    "hardhat": "^2.29.1"
+  },
+  "dependencies": {
+    "ecochain": "file:.."
   }
 }
