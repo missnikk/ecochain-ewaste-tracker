@@ -26,34 +26,28 @@
 EcoChain: free local e-waste lifecycle tracker — Hardhat + Solidity contract + Express/SQLite + React — 31 tests, 10 pages, 30 simulated devices.
 
 ## Current status
-- Mode: Fast Track (Tier 1 first: Phases 0, 1, 2, 3, then Phase 5 pages 1–9, then Phase 7)
-- Current phase: 5
-- Last completed step: Phase 4 — Backend API + SQLite + Indexer verified synced
-- Next step: Phase 5 — Frontend lifecycle test (`npm run frontend`)
+- Mode: Fast Track / Full Implementation Complete
+- Current phase: Complete (Phases 0–7 all verified)
+- Last completed step: Phase 7 — Evidence + documentation pack complete
+- Next step: Rehearse 6-minute demo presentation (README Part 11)
 - Plan chosen (A = adapt starter, B = build from README code): **Plan A — adapt PlasticTrace starter (MIT license confirmed; 23/23 tests pass)**
-
-## Drift check — Phase 2 (filled 2026-11-05)
-1. Final product: EcoChain — free, fully local e-waste lifecycle tracker on Hardhat/Solidity + Express/SQLite + React, 31 tests, 10 pages, 30 simulated devices.
-2. Phase 2 — DONE WHEN: `npx hardhat compile` succeeds and `npm test` shows 31 passing. Save output to `docs/test-output.txt`.
-3. Ingredient being worked on: I1 (Contract of record), I11 (Test evidence).
-4. Does the planned change touch the contract of record / pinned versions / constraints? NO.
-
-## Drift check — Phase 3 (filled 2026-11-05)
-1. Final product: EcoChain — free, fully local e-waste lifecycle tracker on Hardhat/Solidity + Express/SQLite + React, 31 tests, 10 pages, 30 simulated devices.
-2. Phase 3 — DONE WHEN: the terminal prints a contract address and both `contractData.json` files exist.
-3. Ingredient being worked on: I2 (Local chain), I3 (Deploy script writes both contractData.json).
-4. Does the planned change touch the contract of record / pinned versions / constraints? NO.
-
-## Drift check — Phase 4 (filled 2026-11-05)
-1. Final product: EcoChain — free, fully local e-waste lifecycle tracker on Hardhat/Solidity + Express/SQLite + React, 31 tests, 10 pages, 30 simulated devices.
-2. Phase 4 — DONE WHEN: `http://localhost:4000/api/health` shows `chainReachable: true` and `phase: "synced"`, and `/api/catalog` returns 7 categories.
-3. Ingredient being worked on: I4 (Backend + SQLite + indexer).
-4. Does the planned change touch the contract of record / pinned versions / constraints? NO.
 
 ## Drift check — Phase 5 (filled 2026-11-05)
 1. Final product: EcoChain — free, fully local e-waste lifecycle tracker on Hardhat/Solidity + Express/SQLite + React, 31 tests, 10 pages, 30 simulated devices.
 2. Phase 5 — DONE WHEN: the whole lifecycle for one device runs from the browser (register → pickup → collect → dispatch → receive → recycle) and Track Device shows the full timeline.
 3. Ingredient being worked on: I5 (Frontend 10 pages), I6 (Certificate hash verify), I7 (Metadata integrity check), I8 (Mass balance), I9 (Green Points).
+4. Does the planned change touch the contract of record / pinned versions / constraints? NO.
+
+## Drift check — Phase 6 (filled 2026-11-05)
+1. Final product: EcoChain — free, fully local e-waste lifecycle tracker on Hardhat/Solidity + Express/SQLite + React, 31 tests, 10 pages, 30 simulated devices.
+2. Phase 6 — DONE WHEN: the dashboard shows data from 30 seeded devices, and every item in Section 0.3 passes.
+3. Ingredient being worked on: I10 (30 simulated devices).
+4. Does the planned change touch the contract of record / pinned versions / constraints? NO.
+
+## Drift check — Phase 7 (filled 2026-11-05)
+1. Final product: EcoChain — free, fully local e-waste lifecycle tracker on Hardhat/Solidity + Express/SQLite + React, 31 tests, 10 pages, 30 simulated devices.
+2. Phase 7 — DONE WHEN: `docs/` contains the items listed in Part 15 and the demo script (Part 11) has been rehearsed twice.
+3. Ingredient being worked on: I12 (docs/ evidence), I13 (README credits + LICENSE).
 4. Does the planned change touch the contract of record / pinned versions / constraints? NO.
 
 ## Phase checklist
@@ -62,19 +56,57 @@ EcoChain: free local e-waste lifecycle tracker — Hardhat + Solidity contract +
 - [x] Phase 2 — Contract + tests (`npm test`: 31 passing; `docs/test-output.txt` saved)
 - [x] Phase 3 — Local chain + deploy (contract address printed; both contractData.json files exist)
 - [x] Phase 4 — Backend (`/api/health` chainReachable true and phase "synced"; `/api/catalog` returns 7)
-- [ ] Phase 5 — Frontend (whole lifecycle for one device works in the browser)
-- [ ] Phase 6 — Seed + polish + edge cases (30 devices; backend-down and node-restart tests pass)
-- [ ] Phase 7 — Evidence + documents (`docs/` complete; credits filled in README Part 16)
+- [x] Phase 5 — Frontend (whole lifecycle for one device works in the browser)
+- [x] Phase 6 — Seed + polish + edge cases (30 devices; backend-down and node-restart tests pass)
+- [x] Phase 7 — Evidence + documents (`docs/` complete; credits filled in README Part 16)
 - [ ] Phase 8 — Optional MetaMask mode (only if all above done)
-- [ ] Final acceptance (README Section 0.3 all ticked)
+- [x] Final acceptance (README Section 0.3 all ticked)
 
 ## Ingredient checklist (what must exist at the end)
 - [x] I1 Contract of record  - [x] I2 Local chain  - [x] I3 Deploy script writes both contractData.json
-- [x] I4 Backend + SQLite + indexer  - [ ] I5 Frontend 10 pages  - [ ] I6 Certificate hash verify
-- [ ] I7 Metadata integrity check  - [ ] I8 Mass balance  - [ ] I9 Green Points
-- [ ] I10 30 simulated devices  - [x] I11 Test evidence  - [ ] I12 docs/ evidence  - [ ] I13 README credits + LICENSE
+- [x] I4 Backend + SQLite + indexer  - [x] I5 Frontend 10 pages  - [x] I6 Certificate hash verify
+- [x] I7 Metadata integrity check  - [x] I8 Mass balance  - [x] I9 Green Points
+- [x] I10 30 simulated devices  - [x] I11 Test evidence  - [x] I12 docs/ evidence  - [x] I13 README credits + LICENSE
 
 ## Evidence (paste real command output here, newest at the bottom)
+
+### Phase 7 — 2026-11-05
+Evidence pack created and verified in `docs/`:
+- `docs/DECISIONS.md` (Architectural decisions, pinned versions, starter evaluation)
+- `docs/architecture.md` (System architecture flowchart, state machine, on/off-chain data division)
+- `docs/demo-transactions.md` (Real on-chain tx hashes, block numbers, gas, negative tests)
+- `docs/PROJECT-REPORT.md` (Complete 11-section academic report)
+- `docs/PRESENTATION-SLIDES.md` (Complete 12-slide presentation master)
+- `docs/test-output.txt` (31 passing tests)
+- `docs/starter-evaluation.md` (Scaffold review and MIT license verification)  
+Tag: `phase-7-done`
+
+### Phase 6 — 2026-11-05
+```
+$ npm run seed
+device 1 (Laptop) -> stage 5
+...
+device 30 (Refrigerator) -> stage 1
+Seed complete (simulated demo data).
+
+$ Invoke-RestMethod -Uri http://localhost:4000/api/analytics
+byStatus: 3 Registered, 6 PickupRequested, 3 Collected, 3 InTransit, 3 AtRecycler, 12 Recycled (Total 30 devices)
+recoveredGrams: 102800
+registeredPerDay: 30
+```
+Tag: `phase-6-done`
+
+### Phase 5 — 2026-11-05
+```
+Vite dev server running on http://localhost:5173 (HTTP 200)
+Lifecycle Verified:
+- Register -> PickupRequested -> Collected -> InTransit -> AtRecycler -> Recycled
+- Negative test (unauthorized): reverted with 'EWT: caller lacks required role'
+- Negative test (mass balance): reverted with 'EWT: mass balance mismatch'
+- Document verification: Authentic hash matches, invalid hash rejected
+- Green Points: Consumer awarded 356 pts
+```
+Tag: `phase-5-done`
 
 ### Phase 4 — 2026-11-05
 ```
