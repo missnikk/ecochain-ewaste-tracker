@@ -26,20 +26,20 @@
 EcoChain: free local e-waste lifecycle tracker — Hardhat + Solidity contract + Express/SQLite + React — 31 tests, 10 pages, 30 simulated devices.
 
 ## Current status
-- Mode: (Full or Fast Track — see README Part 10.0)
+- Mode: Fast Track (Tier 1 first: Phases 0, 1, 2, 3, then Phase 5 pages 1–9, then Phase 7)
 - Current phase: 0
-- Last completed step: (none)
+- Last completed step: Git + GitHub lock-in complete (commits e6a70d3, 2a647be)
 - Next step: Phase 0 — evaluate the starter repository (README Part 7)
-- Plan chosen (A = adapt starter, B = build from README code): (decide in Phase 0)
+- Plan chosen (A = adapt starter, B = build from README code): **Plan A — adapt PlasticTrace starter (MIT license confirmed; 23/23 tests pass)**
 
-## Drift check (fill before each phase and after each error)
-1. Final product: 
-2. Phase and its DONE WHEN: 
-3. Ingredient (I1–I13) being worked on: 
-4. Does the planned change touch the contract of record / pinned versions / constraints? (must be NO): 
+## Drift check — Phase 0 (filled 2026-11-05)
+1. Final product: EcoChain — free, fully local e-waste lifecycle tracker on Hardhat/Solidity + Express/SQLite + React, 31 tests, 10 pages, 30 simulated devices.
+2. Phase 0 — DONE WHEN: `docs/starter-evaluation.md` exists with license, results and verdict (Plan A or Plan B).
+3. Ingredient being worked on: I1 (Contract of record) — evaluating starter scaffold.
+4. Does the planned change touch the contract of record / pinned versions / constraints? NO.
 
 ## Phase checklist
-- [ ] Phase 0 — Starter evaluation (`docs/starter-evaluation.md` written; license checked; verdict recorded)
+- [x] Phase 0 — Starter evaluation (`docs/starter-evaluation.md` written; license checked; verdict recorded)
 - [ ] Phase 1 — Setup (`npx hardhat --version` prints 2.22.18)
 - [ ] Phase 2 — Contract + tests (`npm test`: 31 passing; `docs/test-output.txt` saved)
 - [ ] Phase 3 — Local chain + deploy (contract address printed; both contractData.json files exist)
@@ -57,6 +57,16 @@ EcoChain: free local e-waste lifecycle tracker — Hardhat + Solidity contract +
 - [ ] I10 30 simulated devices  - [ ] I11 Test evidence  - [ ] I12 docs/ evidence  - [ ] I13 README credits + LICENSE
 
 ## Evidence (paste real command output here, newest at the bottom)
+
+### Phase 0 — 2026-11-05
+```
+git clone https://github.com/Sai-Narayana/plastic_trace.git _starter  → succeeded
+cd _starter/blockchain && npm install  → exit 0 (50 audit warnings, not blocking)
+npx hardhat test → 23 passing (1s)  — Solidity 0.8.24 compiled OK
+```
+**Verdict:** Plan A. MIT license confirmed in README badge and Section 20.  
+`docs/starter-evaluation.md` created.  
+Commit: (see below after push)
 
 ## Error log (one line each: date | phase | exact error | fix applied | result)
 
