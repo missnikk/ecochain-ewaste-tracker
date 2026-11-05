@@ -29,7 +29,7 @@ async function main() {
     deployBlock: receipt.blockNumber,
   };
 
-  for (const rel of ["../frontend/src/contracts", "../backend/src"]) {
+  for (const rel of ["../../frontend/src/contracts", "../../backend/src"]) {
     const dir = path.join(__dirname, rel);
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, "contractData.json"), JSON.stringify(data, null, 2));
