@@ -1,0 +1,12 @@
+_starter/
+node_modules/
+.env
+backend/ecochain.db*
+backend/src/contractData.json
+frontend/src/contracts/contractData.json
+blockchain/artifacts/
+blockchain/cache/
+frontend/dist/
+*.log
+.DS_Store
+Thumbs.db
