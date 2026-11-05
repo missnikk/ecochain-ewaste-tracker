@@ -1,0 +1,13 @@
+{
+  "name": "ecochain",
+  "version": "1.0.0",
+  "description": "EcoChain — Blockchain-Based E-Waste Collection & Recycling Tracking",
+  "scripts": {
+    "chain":    "npm --prefix blockchain run node",
+    "deploy":   "npm --prefix blockchain run deploy",
+    "seed":     "npm --prefix blockchain run seed",
+    "test":     "npm --prefix blockchain test",
+    "backend":  "npm --prefix backend start",
+    "frontend": "npm --prefix frontend run dev"
+  }
+}

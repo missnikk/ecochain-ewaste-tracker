@@ -40,7 +40,7 @@ EcoChain: free local e-waste lifecycle tracker — Hardhat + Solidity contract +
 
 ## Phase checklist
 - [x] Phase 0 — Starter evaluation (`docs/starter-evaluation.md` written; license checked; verdict recorded)
-- [ ] Phase 1 — Setup (`npx hardhat --version` prints 2.22.18)
+- [x] Phase 1 — Setup (`npx hardhat --version` prints 2.22.18)
 - [ ] Phase 2 — Contract + tests (`npm test`: 31 passing; `docs/test-output.txt` saved)
 - [ ] Phase 3 — Local chain + deploy (contract address printed; both contractData.json files exist)
 - [ ] Phase 4 — Backend (`/api/health` chainReachable true and phase "synced"; `/api/catalog` returns 7)
@@ -58,6 +58,14 @@ EcoChain: free local e-waste lifecycle tracker — Hardhat + Solidity contract +
 
 ## Evidence (paste real command output here, newest at the bottom)
 
+### Phase 1 — 2026-11-05
+```
+npx hardhat --version → 2.22.18
+npm install --legacy-peer-deps → exit 0
+```
+Created: blockchain/package.json, blockchain/hardhat.config.js, root package.json, LICENSE, folder structure.  
+Commit: (see below after push)
+
 ### Phase 0 — 2026-11-05
 ```
 git clone https://github.com/Sai-Narayana/plastic_trace.git _starter  → succeeded
@@ -66,7 +74,7 @@ npx hardhat test → 23 passing (1s)  — Solidity 0.8.24 compiled OK
 ```
 **Verdict:** Plan A. MIT license confirmed in README badge and Section 20.  
 `docs/starter-evaluation.md` created.  
-Commit: (see below after push)
+Commit: b1f0838 · tag: phase-0-done
 
 ## Error log (one line each: date | phase | exact error | fix applied | result)
 
