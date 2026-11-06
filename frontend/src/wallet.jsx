@@ -4,6 +4,31 @@ import { provider, readContract, ROLE, shortAddr } from "./services/chain";
 
 const WalletContext = createContext(null);
 
+export const ROLES = {
+  None: 0,
+  Admin: 1,
+  Producer: 2,
+  Consumer: 3,
+  Collector: 4,
+  Recycler: 5,
+};
+
+export const ROLE_NAMES = ["Unregistered", "Admin", "Producer", "Consumer", "Collector", "Recycler"];
+
+export const ROLE_BADGES = {
+  0: "badge-none",
+  1: "badge-admin",
+  2: "badge-producer",
+  3: "badge-consumer",
+  4: "badge-collector",
+  5: "badge-recycler",
+};
+
+export function shortAddress(addr) {
+  if (!addr) return "";
+  return addr.slice(0, 6) + "..." + addr.slice(-4);
+}
+
 export function useWallet() {
   const ctx = useContext(WalletContext);
   if (!ctx) throw new Error("useWallet must be used within a WalletProvider");
@@ -14,6 +39,7 @@ const LOCAL_CHAIN_ID_HEX = "0x7a69"; // 31337
 
 export function WalletProvider({ children }) {
   const [kind, setKind] = useState(null); // 'metamask' | 'demo' | null
+  const [demoIndex, setDemoIndex] = useState(null);
   const [address, setAddress] = useState(null);
   const [signer, setSigner] = useState(null);
   const [role, setRole] = useState(0); // 0 None..5 Recycler
@@ -84,6 +110,7 @@ export function WalletProvider({ children }) {
       const addr = await s.getAddress();
       const { role: r, suspended: susp } = await fetchOnChainRole(addr);
       setKind("demo");
+      setDemoIndex(index);
       setSigner(s);
       setAddress(addr);
       setRole(r);
@@ -141,6 +168,7 @@ export function WalletProvider({ children }) {
       const { role: r, suspended: susp } = await fetchOnChainRole(addr);
 
       setKind("metamask");
+      setDemoIndex(null);
       setSigner(s);
       setAddress(addr);
       setRole(r);
@@ -197,6 +225,7 @@ export function WalletProvider({ children }) {
 
   const disconnect = useCallback(() => {
     setKind(null);
+    setDemoIndex(null);
     setAddress(null);
     setSigner(null);
     setRole(0);
@@ -206,6 +235,7 @@ export function WalletProvider({ children }) {
 
   const value = {
     kind,
+    demoIndex,
     address,
     shortAddress: shortAddr(address),
     role,

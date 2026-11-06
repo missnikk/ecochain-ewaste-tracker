@@ -8,5 +8,6 @@ blockchain/artifacts/
 blockchain/cache/
 frontend/dist/
 *.log
+scratch/
 .DS_Store
 Thumbs.db

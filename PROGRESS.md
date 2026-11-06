@@ -19,9 +19,9 @@ EcoChain V2: free local e-waste lifecycle tracker — Hardhat + Solidity V2 cont
 
 ## Status
 - Version 1: built, audited, and baseline established (tag `v1-audited`).
-- Current phase: U4 (UI shell, role chooser, five portals)
-- Last completed step: Phase U3 — Wallet layer (demo accounts, MetaMask integration, role detection)
-- Next step: Phase U4 — UI shell, role chooser, five portals with route guards and modern visual system
+- Current phase: U5 (Certificate generation & public verify)
+- Last completed step: Phase U4 — UI shell, role chooser, five portals with route guards and modern visual system (tag `u4-done`)
+- Next step: Phase U5 — Certificate generation (jsPDF) & Verify by file
 - Mode: Full V2
 
 ## Drift check — Phase U0 (filled 2026-11-06)
@@ -48,12 +48,18 @@ EcoChain V2: free local e-waste lifecycle tracker — Hardhat + Solidity V2 cont
 3. What I am working on (V2 section): README Part V2, Section V2.5 (Wallet layer) & Section V2.12.
 4. Does my planned change touch the V2 contract of record, a pinned version or a constraint? (must be NO): NO.
 
+## Drift check — Phase U4 (filled 2026-11-06)
+1. Final product: EcoChain V2: free local e-waste lifecycle tracker — Hardhat + Solidity V2 contract (self-service roles, claim, certificate anchoring with duplicate protection, redeemable points) + Express/SQLite + React with MetaMask/demo wallets, role chooser, five portals, redesigned dashboard.
+2. Phase and its DONE WHEN: Phase U4 UI shell, role chooser, five portals. DONE WHEN: Full lifecycle works through the five portals with route guards.
+3. What I am working on (V2 section): README Part V2, Section V2.6 & Section V2.12.
+4. Does my planned change touch the V2 contract of record, a pinned version or a constraint? (must be NO): NO.
+
 ## V2 phase checklist
 - [x] U0 Audit (`docs/AUDIT-V1.md`, credits fixed, overclaims removed) — tag `v1-audited`
 - [x] U1 Contract V2 + tests (≥ 45 passing; `docs/test-output.txt`) — tag `u1-done`
 - [x] U2 Backend V2 (events, participants, certificates, analytics) — tag `u2-done`
 - [x] U3 Wallet layer (demo wallets + MetaMask, role from chain) — tag `u3-done`
-- [ ] U4 UI shell, role chooser, five portals — tag `u4-done`
+- [x] U4 UI shell, role chooser, five portals — tag `u4-done`
 - [ ] U5 Certificate generation + Verify by file — tag `u5-done`
 - [ ] U6 Dashboard redesign — tag `u6-done`
 - [ ] U7 Finish (`start-demo.bat`, seed, `npm run e2e`, all docs, final audit) — tag `u7-done`, then `v2-done`
@@ -72,6 +78,67 @@ EcoChain V2: free local e-waste lifecycle tracker — Hardhat + Solidity V2 cont
 - [ ] Paste report/slides into Word/PowerPoint; rehearse the demo twice
 
 ## Evidence (paste real command output; newest at the bottom)
+
+### Phase U4 — UI Shell, Role Chooser, Five Portals (2026-11-06)
+- Implemented full V2 visual design system in `frontend/src/styles.css` (`#0b3d33` dark green sidebar, `#f4f7f5` page background, 12px border radius cards, soft shadows, status chips 0..5, role badges, KPI grids, responsive tables).
+- Built Landing Page `frontend/src/pages/Landing.jsx` with Hero, 5 Role Cards with Lucide icons, MetaMask and Demo Account connection modal (#0 to #9), self-registration dialog, unauthorized rejection demo for viva presentations, and quick links to public explorers.
+- Built Five Portals with strict role separation:
+  - `RegulatorPortal.jsx`: System KPI cards, registered participants table with one-click suspend/reinstate controls, role override assignment, emergency pause/resume circuit breaker, and real-time indexed audit trail.
+  - `ProducerPortal.jsx`: Device registration form with real-time metadata SHA-256 computation, printable warranty/claim code card, catalog of manufactured devices, and counter for Green Points redeemed by consumers.
+  - `ConsumerPortal.jsx`: Green Points balance summary card, warranty claim form (claims unowned devices by ID), list of owned devices with one-click "Schedule Eco-Pickup" action, points redemption form (spends points with registered producers), and issued recycling certificates table.
+  - `CollectorPortal.jsx`: Pickup requests dispatch queue with "Confirm Pickup" action (advances to `Collected`), in-custody inventory, and transfer form with recycler selection (advances to `InTransit`).
+  - `RecyclerPortal.jsx`: Incoming dispatches intake queue with physical intake weighing (`confirmReceipt`, advances to `AtRecycler`), process & certify screen with live mass-balance invariant validator (recovered + residual == received), automated jsPDF certificate generator, SHA-256 byte hashing, on-chain hash anchoring (`completeRecycling`, advances to `Recycled`), and backend certificate upload.
+- Implemented App Shell & Route Guards in `frontend/src/App.jsx`:
+  - Left navigation sidebar with Public views and Role Portals.
+  - Top bar with live network chip (`EcoChain Local 31337`), backend connection status indicator dot, active role badge, wallet address with clipboard copy button, and disconnect control.
+  - Route guards on `/regulator`, `/producer`, `/consumer`, `/collector`, `/recycler` enforcing on-chain roles and presenting informative access mismatch / suspension alerts.
+- Verified Frontend Production Build:
+  - `npm --prefix frontend run build`: `✓ built in 4.60s`, 0 errors.
+- Verified Full End-to-End Lifecycle on Live Node:
+  ```
+  === Phase U4 Lifecycle Verification ===
+  1. Checking roles on-chain...
+  Admin: 1 (expect 1)
+  Producer: 2 (expect 2)
+  Consumer: 3 (expect 3)
+  Collector: 4 (expect 4)
+  Recycler: 5 (expect 5)
+
+  2. Producer registering device...
+  -> Device #3 registered by Producer
+
+  3. Consumer claiming Device #3...
+  -> Device #3 claimed by Consumer: 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC
+
+  4. Consumer requesting pickup...
+  -> Status: 1 (expect 1 = PickupRequested)
+
+  5. Collector confirming collection...
+  -> Status: 2 (expect 2 = Collected), Custodian: 0x90F79bf6EB2c4f870365E785982E1f101E93b906
+
+  6. Collector dispatching to Recycler...
+  -> Status: 3 (expect 3 = InTransit), PendingRecipient: 0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65
+
+  7. Recycler confirming receipt (weighing 2400g)...
+  -> Status: 4 (expect 4 = AtRecycler), ReceivedGrams: 2400
+
+  8. Recycler completing recycling (Recovered: 2100g, Residual: 300g, Sum: 2400g)...
+  -> Status: 5 (expect 5 = Recycled)
+  -> CertHash anchored: 0x1b78f622cae8f6da1967ca1f741cfaac7917fa6f8582c4f5e6df57a2e0c93789
+
+  9. Consumer Green Points balance: 29 (expected >= 21 pts from 2100g)
+
+  10. Consumer redeeming 10 Green Points with Producer...
+  -> Consumer remaining points: 19, Producer redeemed points: 10
+
+  11. Regulator testing account suspension...
+  -> Account 0x976EA74026E726554dB657fA54763abd0C3a0aa9 suspended: true
+  -> PASS: suspended account blocked with: execution reverted: "EWT: account suspended" ...
+  -> Account 0x976EA74026E726554dB657fA54763abd0C3a0aa9 reinstated: suspended = false
+
+  === LIFECYCLE VERIFICATION PASS: All 5 roles and portals validated on-chain! ===
+  ```
+- Tag: `u4-done`
 
 ### Phase U3 — Wallet Layer (2026-11-06)
 - Installed allowed dependencies in frontend: `jspdf@2.5.2` and `lucide-react@0.383.0`.

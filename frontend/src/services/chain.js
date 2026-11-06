@@ -2,6 +2,7 @@ import { ethers } from "ethers";
 import contractData from "../contracts/contractData.json";
 
 export const RPC_URL = "http://127.0.0.1:8545";
+export const contractAddress = contractData.address;
 export const provider = new ethers.JsonRpcProvider(RPC_URL);
 
 export const ROLE = ["None", "Admin", "Producer", "Consumer", "Collector", "Recycler"];
