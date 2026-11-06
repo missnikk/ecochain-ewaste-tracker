@@ -19,9 +19,9 @@ EcoChain V2: free local e-waste lifecycle tracker — Hardhat + Solidity V2 cont
 
 ## Status
 - Version 1: built, audited, and baseline established (tag `v1-audited`).
-- Current phase: U6 (Dashboard redesign)
-- Last completed step: Phase U5 — Certificate generation (jsPDF) & Verify by file (tag `u5-done`)
-- Next step: Phase U6 — Dashboard redesign (KPI cards, SVG donut & bar charts, pipeline strip, offline fallback)
+- Current phase: U7 (Finish)
+- Last completed step: Phase U6 — Dashboard redesign (tag `u6-done`)
+- Next step: Phase U7 — Finish (`start-demo.bat`, seed, `npm run e2e`, all docs, final audit)
 - Mode: Full V2
 
 ## Drift check — Phase U0 (filled 2026-11-06)
@@ -60,6 +60,12 @@ EcoChain V2: free local e-waste lifecycle tracker — Hardhat + Solidity V2 cont
 3. What I am working on (V2 section): README Part V2, Section V2.4 & Section V2.12.
 4. Does my planned change touch the V2 contract of record, a pinned version or a constraint? (must be NO): NO.
 
+## Drift check — Phase U6 (filled 2026-11-06)
+1. Final product: EcoChain V2: free local e-waste lifecycle tracker — Hardhat + Solidity V2 contract (self-service roles, claim, certificate anchoring with duplicate protection, redeemable points) + Express/SQLite + React with MetaMask/demo wallets, role chooser, five portals, redesigned dashboard.
+2. Phase and its DONE WHEN: Phase U6 Dashboard redesign. DONE WHEN: All cards and charts render with seeded data and without the backend.
+3. What I am working on (V2 section): README Part V2, Section V2.7 & Section V2.12.
+4. Does my planned change touch the V2 contract of record, a pinned version or a constraint? (must be NO): NO.
+
 ## V2 phase checklist
 - [x] U0 Audit (`docs/AUDIT-V1.md`, credits fixed, overclaims removed) — tag `v1-audited`
 - [x] U1 Contract V2 + tests (≥ 45 passing; `docs/test-output.txt`) — tag `u1-done`
@@ -67,7 +73,7 @@ EcoChain V2: free local e-waste lifecycle tracker — Hardhat + Solidity V2 cont
 - [x] U3 Wallet layer (demo wallets + MetaMask, role from chain) — tag `u3-done`
 - [x] U4 UI shell, role chooser, five portals — tag `u4-done`
 - [x] U5 Certificate generation + Verify by file — tag `u5-done`
-- [ ] U6 Dashboard redesign — tag `u6-done`
+- [x] U6 Dashboard redesign — tag `u6-done`
 - [ ] U7 Finish (`start-demo.bat`, seed, `npm run e2e`, all docs, final audit) — tag `u7-done`, then `v2-done`
 
 ## Concerns to close in Phase U0 (README V2.1)
@@ -84,6 +90,59 @@ EcoChain V2: free local e-waste lifecycle tracker — Hardhat + Solidity V2 cont
 - [ ] Paste report/slides into Word/PowerPoint; rehearse the demo twice
 
 ## Evidence (paste real command output; newest at the bottom)
+
+### Phase U6 — Dashboard Redesign (2026-11-06)
+- Implemented modern public dashboard in `frontend/src/pages/Dashboard.jsx`:
+  - Top row KPI cards with icons: Devices Registered (`Layers`), Recycling Rate (`Recycle`), Material Recovered in kg (`Scale`), and Green Points Issued vs Redeemed (`Sparkles`).
+  - Lifecycle Pipeline strip: visual step progression across 6 stages with counts and percentages.
+  - Pure SVG Donut Chart: stage distribution rendered mathematically without external chart libraries (`circumference = 2 * PI * r` with SVG stroke-dasharray arcs, responsive center stats, and labeled color legend).
+  - Pure SVG Category Breakdown Bar Chart: distribution across 7 EPR categories.
+  - Daily Activity Trends: registrations vs recycled per day timeline.
+  - Top Recyclers Leaderboard: ranks verified recyclers by recovered kilograms and issued certificates.
+  - Real-Time Blockchain Activity Feed: last 10 indexed event logs with actor address, device ID, timestamp, and one-click copyable transaction hash.
+  - Offline Graceful Degradation: when backend SQLite indexer is offline, the 4 top KPI cards, Donut chart, and Pipeline strip render automatically from direct smart contract read calls (`deviceCount`, `statusCount(0..5)`, `totalRecoveredGrams`, `totalPointsRedeemed`) with an informative status banner.
+- Verified Frontend Production Build:
+  - `npm --prefix frontend run build`: `✓ built in 4.80s`, 0 errors.
+- Verified Online & Offline Telemetry (`scratch/verify_u6_dashboard.js`):
+  ```
+  === Phase U6 Dashboard Redesign Verification ===
+
+  1. Verifying Online Mode (Blockchain + Backend API):
+  -> Backend /api/analytics response status: 200
+  -> KPIs: {
+    devicesRegistered: 5,
+    devicesRecycled: 3,
+    recycledPercent: 60,
+    materialRecoveredGrams: 7400,
+    materialRecoveredKg: '7.40',
+    pointsIssued: 74,
+    pointsRedeemed: 10
+  }
+  -> ByStatus counts: [
+    { status: 0, count: 1 },
+    { status: 4, count: 1 },
+    { status: 5, count: 3 }
+  ]
+  -> ByCategory counts (total categories): 7
+  -> PerDay registered/recycled: {
+    registered: [ { day: '2026-11-05', count: 1 }, { day: '2026-11-06', count: 4 } ],
+    recycled: [ { day: '2026-11-05', count: 1 }, { day: '2026-11-06', count: 2 } ]
+  }
+  -> Top recyclers found: 1
+  -> Recent activity items: 10
+  -> [PASS] Online analytics and charts payload validated.
+
+  2. Verifying Offline Degradation (Direct Smart Contract Reads):
+  -> On-chain Devices Registered: 5
+  -> On-chain Stage Counts (0..5): 1, 0, 0, 0, 1, 3
+  -> On-chain Recycling Rate: 60% (3 of 5)
+  -> On-chain Material Recovered: 7.40 kg (7400g)
+  -> On-chain Green Points: 74 issued, 10 redeemed
+  -> [PASS] Offline fallback works: all 4 KPI cards, Donut chart, and Pipeline strip render directly from Ethereum contract.
+
+  === DASHBOARD VERIFICATION PASS ===
+  ```
+- Tag: `u6-done`
 
 ### Phase U5 — Certificate Generation & Public Verify (2026-11-06)
 - Implemented public certificate verifier in `frontend/src/pages/VerifyCertificate.jsx`:
