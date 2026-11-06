@@ -19,9 +19,9 @@ EcoChain V2: free local e-waste lifecycle tracker — Hardhat + Solidity V2 cont
 
 ## Status
 - Version 1: built, audited, and baseline established (tag `v1-audited`).
-- Current phase: U5 (Certificate generation & public verify)
-- Last completed step: Phase U4 — UI shell, role chooser, five portals with route guards and modern visual system (tag `u4-done`)
-- Next step: Phase U5 — Certificate generation (jsPDF) & Verify by file
+- Current phase: U6 (Dashboard redesign)
+- Last completed step: Phase U5 — Certificate generation (jsPDF) & Verify by file (tag `u5-done`)
+- Next step: Phase U6 — Dashboard redesign (KPI cards, SVG donut & bar charts, pipeline strip, offline fallback)
 - Mode: Full V2
 
 ## Drift check — Phase U0 (filled 2026-11-06)
@@ -54,13 +54,19 @@ EcoChain V2: free local e-waste lifecycle tracker — Hardhat + Solidity V2 cont
 3. What I am working on (V2 section): README Part V2, Section V2.6 & Section V2.12.
 4. Does my planned change touch the V2 contract of record, a pinned version or a constraint? (must be NO): NO.
 
+## Drift check — Phase U5 (filled 2026-11-06)
+1. Final product: EcoChain V2: free local e-waste lifecycle tracker — Hardhat + Solidity V2 contract (self-service roles, claim, certificate anchoring with duplicate protection, redeemable points) + Express/SQLite + React with MetaMask/demo wallets, role chooser, five portals, redesigned dashboard.
+2. Phase and its DONE WHEN: Phase U5 Certificate generation + Verify by file. DONE WHEN: A generated certificate verifies ✅; a one-byte change gives ❌; reuse of the same hash is rejected.
+3. What I am working on (V2 section): README Part V2, Section V2.4 & Section V2.12.
+4. Does my planned change touch the V2 contract of record, a pinned version or a constraint? (must be NO): NO.
+
 ## V2 phase checklist
 - [x] U0 Audit (`docs/AUDIT-V1.md`, credits fixed, overclaims removed) — tag `v1-audited`
 - [x] U1 Contract V2 + tests (≥ 45 passing; `docs/test-output.txt`) — tag `u1-done`
 - [x] U2 Backend V2 (events, participants, certificates, analytics) — tag `u2-done`
 - [x] U3 Wallet layer (demo wallets + MetaMask, role from chain) — tag `u3-done`
 - [x] U4 UI shell, role chooser, five portals — tag `u4-done`
-- [ ] U5 Certificate generation + Verify by file — tag `u5-done`
+- [x] U5 Certificate generation + Verify by file — tag `u5-done`
 - [ ] U6 Dashboard redesign — tag `u6-done`
 - [ ] U7 Finish (`start-demo.bat`, seed, `npm run e2e`, all docs, final audit) — tag `u7-done`, then `v2-done`
 
@@ -78,6 +84,61 @@ EcoChain V2: free local e-waste lifecycle tracker — Hardhat + Solidity V2 cont
 - [ ] Paste report/slides into Word/PowerPoint; rehearse the demo twice
 
 ## Evidence (paste real command output; newest at the bottom)
+
+### Phase U5 — Certificate Generation & Public Verify (2026-11-06)
+- Implemented public certificate verifier in `frontend/src/pages/VerifyCertificate.jsx`:
+  - Drag-and-drop or file selector for PDF recycling certificates.
+  - Local client-side SHA-256 calculation via `crypto.subtle.digest` (file never leaves machine).
+  - Reverse lookup against `contract.certificateDevice(hash)` mapping on the blockchain (zero login / zero wallet required).
+  - On match (✅): displays Device ID, Category, Certified Recycler, Producer, mass-balance breakdown, certified timestamp, anchored hash, link to `/track?id=N`, and an interactive "Simulate 1-Byte Tamper" test button for viva demonstration.
+  - On mismatch / tampered (❌): displays prominent red alert detailing how cryptographic hash integrity detected alteration.
+  - 1-byte tamper demonstration: flips byte #42 in memory, recalculates SHA-256, queries `certificateDevice`, and demonstrates live rejection on-screen.
+- Enhanced `frontend/src/pages/TrackDevice.jsx`:
+  - Direct deep linking with `?id=N` URL parameter.
+  - Automatic display of anchored certificate hash and one-click "Download Certificate PDF" button (serving bytes from `/api/certificates/:deviceId`) and "Verify in Verifier" shortcut.
+- Extended `frontend/src/services/api.js` and `hash.js` with `uploadCertificate`, `certificateUrl`, and `sha256Bytes`.
+- Real Verification Script Output (`scratch/verify_u5_certificates.js`):
+  ```
+  === Phase U5 Certificate & Verification Verification ===
+
+  1. Registering and advancing Device A through lifecycle...
+  -> Device A created with ID #4
+  -> Device #4 is now AtRecycler with 5000g received weight.
+
+  2. Generating authentic PDF certificate with jsPDF...
+  -> Generated PDF size: 3642 bytes
+  -> Computed SHA-256 hash: 0x9a3fcb917c73020424a97522f43a3cce496141a2ab21748673f32907d650c63a
+
+  3. Recycler anchoring certificate on blockchain via completeRecycling()...
+  -> Transaction confirmed! Status is now Recycled.
+
+  4. Verifying authentic certificate on blockchain...
+  -> certificateDevice("0x9a3fcb917c73...") returned: Device #4
+  -> verifyCertificate(4, hash) returned: true
+  -> [PASS] Original certificate verified ✅
+
+  5. Demonstrating 1-byte file tampering...
+  -> Modified byte #50 (10 -> 245)
+  -> Tampered file SHA-256 hash: 0x6505c6107cafbe9507934ab6aaace851e5c5e88703a020850dd515927fe543f3
+  -> certificateDevice(tamperedHash) returned: 0
+  -> verifyCertificate(4, tamperedHash) returned: false
+  -> [PASS] Tampered certificate rejected ❌ (One-byte alteration produces non-existent hash)
+
+  6. Testing Duplicate Protection: attempting to reuse identical certHash on another device...
+  -> [PASS] Duplicate certificate hash successfully rejected: "EWT: certificate already used"
+
+  7. Testing Backend certificate storage and hash validation...
+  -> POST /api/certificates/4 status: 200 {
+    ok: true,
+    hash: '0x9a3fcb917c73020424a97522f43a3cce496141a2ab21748673f32907d650c63a',
+    deviceId: 4
+  }
+  -> GET /api/certificates/4 returned: 3642 bytes, SHA-256: 0x9a3fcb917c73020424a97522f43a3cce496141a2ab21748673f32907d650c63a
+  -> [PASS] Downloaded binary matches anchored certificate hash perfectly!
+
+  === ALL CERTIFICATE & VERIFICATION CRITERIA PASSED! ===
+  ```
+- Tag: `u5-done`
 
 ### Phase U4 — UI Shell, Role Chooser, Five Portals (2026-11-06)
 - Implemented full V2 visual design system in `frontend/src/styles.css` (`#0b3d33` dark green sidebar, `#f4f7f5` page background, 12px border radius cards, soft shadows, status chips 0..5, role badges, KPI grids, responsive tables).

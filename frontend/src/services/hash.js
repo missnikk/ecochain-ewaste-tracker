@@ -9,7 +9,7 @@ export function canonicalMetadata(m) {
   });
 }
 
-async function sha256Bytes(buffer) {
+export async function sha256Bytes(buffer) {
   // crypto.subtle works on http://localhost (secure context). It will not work on a plain LAN IP.
   const digest = await crypto.subtle.digest("SHA-256", buffer);
   return "0x" + Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");

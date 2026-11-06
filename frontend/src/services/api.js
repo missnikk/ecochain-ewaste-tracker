@@ -19,6 +19,11 @@ export const api = {
   saveMetadata: (id, meta) => request(`/api/devices/${id}/metadata`, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(meta),
   }),
+  uploadCertificate: (id, payload) => request(`/api/certificates/${id}`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+  }),
+  certificateUrl: (id) => `${BASE}/api/certificates/${id}`,
   events: (limit = 50) => request(`/api/events?limit=${limit}`),
   analytics: () => request("/api/analytics"),
+  participants: () => request("/api/participants"),
 };
