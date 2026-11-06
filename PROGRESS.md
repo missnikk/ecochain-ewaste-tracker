@@ -19,9 +19,9 @@ EcoChain V2: free local e-waste lifecycle tracker — Hardhat + Solidity V2 cont
 
 ## Status
 - Version 1: built, audited, and baseline established (tag `v1-audited`).
-- Current phase: U3 (Wallet layer)
-- Last completed step: Phase U2 — Backend V2 indexer, participants, certificates, and analytics verified
-- Next step: Phase U3 — Wallet layer (demo wallets + MetaMask, role detection from chain)
+- Current phase: U4 (UI shell, role chooser, five portals)
+- Last completed step: Phase U3 — Wallet layer (demo accounts, MetaMask integration, role detection)
+- Next step: Phase U4 — UI shell, role chooser, five portals with route guards and modern visual system
 - Mode: Full V2
 
 ## Drift check — Phase U0 (filled 2026-11-06)
@@ -42,11 +42,17 @@ EcoChain V2: free local e-waste lifecycle tracker — Hardhat + Solidity V2 cont
 3. What I am working on (V2 section): README Part V2, Section V2.8 (Backend changes) & Section V2.12.
 4. Does my planned change touch the V2 contract of record, a pinned version or a constraint? (must be NO): NO.
 
+## Drift check — Phase U3 (filled 2026-11-06)
+1. Final product: EcoChain V2: free local e-waste lifecycle tracker — Hardhat + Solidity V2 contract (self-service roles, claim, certificate anchoring with duplicate protection, redeemable points) + Express/SQLite + React with MetaMask/demo wallets, role chooser, five portals, redesigned dashboard.
+2. Phase and its DONE WHEN: Phase U3 Wallet layer. DONE WHEN: Demo wallet connects and role is read from the chain; MetaMask path implemented (student verifies with MetaMask).
+3. What I am working on (V2 section): README Part V2, Section V2.5 (Wallet layer) & Section V2.12.
+4. Does my planned change touch the V2 contract of record, a pinned version or a constraint? (must be NO): NO.
+
 ## V2 phase checklist
 - [x] U0 Audit (`docs/AUDIT-V1.md`, credits fixed, overclaims removed) — tag `v1-audited`
 - [x] U1 Contract V2 + tests (≥ 45 passing; `docs/test-output.txt`) — tag `u1-done`
 - [x] U2 Backend V2 (events, participants, certificates, analytics) — tag `u2-done`
-- [ ] U3 Wallet layer (demo wallets + MetaMask, role from chain) — tag `u3-done`
+- [x] U3 Wallet layer (demo wallets + MetaMask, role from chain) — tag `u3-done`
 - [ ] U4 UI shell, role chooser, five portals — tag `u4-done`
 - [ ] U5 Certificate generation + Verify by file — tag `u5-done`
 - [ ] U6 Dashboard redesign — tag `u6-done`
@@ -66,6 +72,19 @@ EcoChain V2: free local e-waste lifecycle tracker — Hardhat + Solidity V2 cont
 - [ ] Paste report/slides into Word/PowerPoint; rehearse the demo twice
 
 ## Evidence (paste real command output; newest at the bottom)
+
+### Phase U3 — Wallet Layer (2026-11-06)
+- Installed allowed dependencies in frontend: `jspdf@2.5.2` and `lucide-react@0.383.0`.
+- Implemented `frontend/src/wallet.jsx` with `WalletProvider` and `useWallet()` hook:
+  - MetaMask connection with network switching to `EcoChain Local` (`chainId: 31337`, `0x7a69`) and fallback network addition.
+  - Demo wallet connection for unlocked accounts #0 to #9 with on-chain role and suspension detection.
+  - Event listeners for `accountsChanged` and `chainChanged`.
+  - User rejection mapping for MetaMask error code 4001.
+- Updated `frontend/src/services/chain.js` with `sendTx` supporting active signer instances and custom revert mapping.
+- Produced `docs/METAMASK-SETUP.md` with step-by-step instructions for adding the network and importing local accounts.
+- Verified: Demo accounts #0 to #5 read roles directly from the blockchain (Admin, Producer, Consumer, Collector, Recycler, None).
+- Vite build verified: 0 errors (`✓ built in 7.10s`).
+- Tag: `u3-done`
 
 ### Phase U2 — Backend V2 (2026-11-06)
 - Updated SQLite database schema in `backend/src/db.js`: added `participants` and `certificates` tables; updated `devices` table to support nullable `owner`, `producer`, weights, and certificate hashes.
