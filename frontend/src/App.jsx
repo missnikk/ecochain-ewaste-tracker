@@ -40,8 +40,17 @@ import {
   ExternalLink,
   Layers,
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  ArrowLeftRight
 } from "lucide-react";
+
+const DEMO_ACCOUNT_BY_ROLE = {
+  [ROLES.Admin]: 0,
+  [ROLES.Producer]: 1,
+  [ROLES.Consumer]: 2,
+  [ROLES.Collector]: 3,
+  [ROLES.Recycler]: 4,
+};
 
 function RouteGuard({ requiredRole, roleName, children }) {
   const { address, role, suspended, connectDemo, connectMetaMask } = useWallet();
@@ -56,11 +65,14 @@ function RouteGuard({ requiredRole, roleName, children }) {
           The <strong>{roleName} Portal</strong> requires an active wallet connection on the EcoChain network.
         </p>
         <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-          <button className="btn btn-primary" onClick={connectMetaMask}>
+          <button className="btn btn-primary" onClick={() => connectDemo(DEMO_ACCOUNT_BY_ROLE[requiredRole] ?? 0)}>
+            Switch to {roleName} (Demo Account)
+          </button>
+          <button className="btn btn-secondary" onClick={connectMetaMask}>
             Connect MetaMask
           </button>
           <button className="btn btn-outline" onClick={() => navigate("/")}>
-            Choose Demo Wallet
+            Go to Landing Page
           </button>
         </div>
       </div>
@@ -78,15 +90,22 @@ function RouteGuard({ requiredRole, roleName, children }) {
         <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
           All state-modifying actions are blocked by the smart contract while suspended.
         </p>
-        <button className="btn btn-outline" style={{ marginTop: 20 }} onClick={() => navigate("/")}>
-          Return to Landing
-        </button>
+        <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 20 }}>
+          <button className="btn btn-primary" onClick={() => connectDemo(0)}>
+            Switch to Regulator (Demo #0) to Reinstate
+          </button>
+          <button className="btn btn-outline" onClick={() => navigate("/")}>
+            Return to Landing
+          </button>
+        </div>
       </div>
     );
   }
 
   if (role !== requiredRole) {
     const currentRoleName = ROLE_NAMES[role] || "Unregistered";
+    const recommendedDemoIndex = DEMO_ACCOUNT_BY_ROLE[requiredRole] ?? 0;
+
     return (
       <div className="card" style={{ maxWidth: 640, margin: "40px auto", padding: "32px 24px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
@@ -94,24 +113,33 @@ function RouteGuard({ requiredRole, roleName, children }) {
           <h2 style={{ margin: 0 }}>Role Access Mismatch</h2>
         </div>
         <p style={{ marginBottom: 16, color: "var(--text)" }}>
-          You are currently connected as <span className={`badge ${ROLE_BADGES[role]}`}>{currentRoleName}</span> with wallet:
+          You are currently acting as <span className={`badge ${ROLE_BADGES[role]}`}>{currentRoleName}</span> with wallet:
           <br />
           <code style={{ fontSize: 13, background: "#e2e8f0", padding: "3px 8px", borderRadius: 4, display: "inline-block", marginTop: 6 }}>
             {address}
           </code>
         </p>
         <p style={{ color: "var(--text-muted)", fontSize: 14 }}>
-          This portal is restricted to the <strong>{roleName}</strong> role. The smart contract validates roles on-chain and will reject transactions from other roles.
+          This portal requires the <strong>{roleName}</strong> role. The smart contract validates permissions on-chain.
         </p>
-        <div style={{ display: "flex", gap: 12, marginTop: 24, flexWrap: "wrap" }}>
-          {role === ROLES.Admin && <Link to="/regulator" className="btn btn-primary">Go to Regulator Portal</Link>}
-          {role === ROLES.Producer && <Link to="/producer" className="btn btn-primary">Go to Producer Portal</Link>}
-          {role === ROLES.Consumer && <Link to="/consumer" className="btn btn-primary">Go to Consumer Portal</Link>}
-          {role === ROLES.Collector && <Link to="/collector" className="btn btn-primary">Go to Collector Portal</Link>}
-          {role === ROLES.Recycler && <Link to="/recycler" className="btn btn-primary">Go to Recycler Portal</Link>}
-          {role === ROLES.None && <Link to="/" className="btn btn-primary">Register Role on Landing</Link>}
+        <div style={{ display: "flex", gap: 12, marginTop: 24, flexWrap: "wrap", alignItems: "center" }}>
+          <button
+            className="btn btn-primary"
+            onClick={() => connectDemo(recommendedDemoIndex)}
+            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+          >
+            <ArrowLeftRight size={15} /> Switch to {roleName} (Demo #{recommendedDemoIndex})
+          </button>
+
+          {role === ROLES.Admin && <Link to="/regulator" className="btn btn-secondary">Go to Regulator Portal</Link>}
+          {role === ROLES.Producer && <Link to="/producer" className="btn btn-secondary">Go to Producer Portal</Link>}
+          {role === ROLES.Consumer && <Link to="/consumer" className="btn btn-secondary">Go to Consumer Portal</Link>}
+          {role === ROLES.Collector && <Link to="/collector" className="btn btn-secondary">Go to Collector Portal</Link>}
+          {role === ROLES.Recycler && <Link to="/recycler" className="btn btn-secondary">Go to Recycler Portal</Link>}
+          {role === ROLES.None && <Link to="/" className="btn btn-secondary">Register on Landing</Link>}
+
           <button className="btn btn-outline" onClick={() => navigate("/")}>
-            Switch Wallet
+            Choose Another Account
           </button>
         </div>
       </div>
@@ -122,7 +150,17 @@ function RouteGuard({ requiredRole, roleName, children }) {
 }
 
 function AppShell() {
-  const { kind, address, role, suspended, disconnect, connectDemo, demoIndex } = useWallet();
+  const {
+    kind,
+    demoIndex,
+    address,
+    role,
+    suspended,
+    disconnect,
+    connectDemo,
+    connectMetaMask
+  } = useWallet();
+
   const [copied, setCopied] = useState(false);
   const [backendUp, setBackendUp] = useState(true);
 
@@ -151,6 +189,8 @@ function AppShell() {
       setTimeout(() => setCopied(false), 2000);
     }
   };
+
+  const currentSelectValue = kind === "demo" ? String(demoIndex ?? 0) : kind === "metamask" ? "metamask" : "0";
 
   return (
     <div className="app-layout">
@@ -220,7 +260,7 @@ function AppShell() {
       <div className="main-wrapper">
         {/* Top Bar */}
         <header className="topbar">
-          <div className="topbar-left">
+          <div className="topbar-left" style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <span className="network-chip online">
               EcoChain Local (31337)
             </span>
@@ -231,8 +271,44 @@ function AppShell() {
             )}
           </div>
 
-          <div className="topbar-right">
-            {address ? (
+          <div className="topbar-right" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {/* 1-Click Role / Account Switcher Dropdown */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 600 }}>Role:</span>
+              <select
+                value={currentSelectValue}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "metamask") {
+                    connectMetaMask();
+                  } else {
+                    connectDemo(Number(val));
+                  }
+                }}
+                style={{
+                  padding: "5px 10px",
+                  borderRadius: 6,
+                  border: "1px solid #cbd5e1",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  background: "#f8fafc",
+                  cursor: "pointer",
+                  color: "#0f172a",
+                }}
+                title="Switch active role / demo account"
+              >
+                <option value="0">Demo #0: Regulator (Admin)</option>
+                <option value="1">Demo #1: Producer</option>
+                <option value="2">Demo #2: Consumer A</option>
+                <option value="3">Demo #3: Collector</option>
+                <option value="4">Demo #4: Recycler</option>
+                <option value="5">Demo #5: Unregistered</option>
+                <option value="6">Demo #6: Consumer B</option>
+                <option value="metamask">🦊 MetaMask Wallet</option>
+              </select>
+            </div>
+
+            {address && (
               <>
                 <span className={`badge ${ROLE_BADGES[role]}`}>
                   {ROLE_NAMES[role] || "Unregistered"}
@@ -240,28 +316,12 @@ function AppShell() {
                 </span>
 
                 <div className="wallet-chip">
-                  <span style={{ color: "var(--text-muted)", fontSize: 11, marginRight: 2 }}>
-                    {kind === "demo" ? `Demo #${demoIndex}` : "MetaMask"}:
-                  </span>
                   <span>{shortAddress(address)}</span>
                   <button className="copy-btn" onClick={copyAddress} title="Copy address to clipboard">
                     {copied ? <Check size={14} color="#16a34a" /> : <Copy size={14} />}
                   </button>
                 </div>
-
-                <button
-                  className="btn btn-outline"
-                  onClick={disconnect}
-                  style={{ padding: "5px 10px", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}
-                  title="Disconnect wallet"
-                >
-                  <LogOut size={13} /> Disconnect
-                </button>
               </>
-            ) : (
-              <Link to="/" className="btn btn-primary" style={{ padding: "6px 14px", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
-                <Wallet size={14} /> Connect Wallet
-              </Link>
             )}
           </div>
         </header>

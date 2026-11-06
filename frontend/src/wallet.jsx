@@ -116,6 +116,9 @@ export function WalletProvider({ children }) {
       setRole(r);
       setSuspended(susp);
       setConnecting(false);
+      try {
+        localStorage.setItem("ecochain_wallet", JSON.stringify({ kind: "demo", index }));
+      } catch {}
       return { ok: true, address: addr, role: r };
     } catch (e) {
       setError(e.message);
@@ -174,6 +177,9 @@ export function WalletProvider({ children }) {
       setRole(r);
       setSuspended(susp);
       setConnecting(false);
+      try {
+        localStorage.setItem("ecochain_wallet", JSON.stringify({ kind: "metamask" }));
+      } catch {}
 
       return { ok: true, address: addr, role: r };
     } catch (e) {
@@ -223,6 +229,35 @@ export function WalletProvider({ children }) {
     };
   }, [kind, fetchOnChainRole]);
 
+  // Auto-restore session from localStorage or auto-connect Demo #0 on first visit
+  useEffect(() => {
+    let mounted = true;
+    const init = async () => {
+      try {
+        const saved = localStorage.getItem("ecochain_wallet");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.kind === "demo" && typeof parsed.index === "number") {
+            if (mounted) await connectDemo(parsed.index);
+            return;
+          }
+          if (parsed.kind === "metamask") {
+            if (mounted) await connectMetaMask();
+            return;
+          }
+        }
+      } catch {}
+      // Default to Demo Account #0 (Regulator / Admin) so student is never stuck
+      if (mounted) {
+        await connectDemo(0);
+      }
+    };
+    init();
+    return () => {
+      mounted = false;
+    };
+  }, [connectDemo, connectMetaMask]);
+
   const disconnect = useCallback(() => {
     setKind(null);
     setDemoIndex(null);
@@ -231,6 +266,9 @@ export function WalletProvider({ children }) {
     setRole(0);
     setSuspended(false);
     setError(null);
+    try {
+      localStorage.removeItem("ecochain_wallet");
+    } catch {}
   }, []);
 
   const value = {

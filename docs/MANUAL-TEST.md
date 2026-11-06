@@ -1,168 +1,135 @@
-# EcoChain V2 — Step-by-Step Manual Demonstration Script
+# EcoChain V2 — Simple Step-by-Step Testing & Presentation Guide
 
-This script is your exact, rehearsed guide for the viva examination, lab presentation, and project recording. Every label matches the exact text on the screen.
-
----
-
-## Preparation (Before the Presentation)
-
-1. Open your terminal in the project directory:
-   ```cmd
-   cd C:\ecochain
-   ```
-2. Double-click `start-demo.bat` (or execute `start-demo.bat` in Command Prompt).
-3. Wait ~20 seconds as it launches the blockchain, deploys the contract, starts the backend, seeds 30 devices, and opens your browser at `http://localhost:5173`.
-4. Ensure your browser is maximized at `http://localhost:5173`.
+This guide is designed to be **super easy to follow**. Every single step tells you exactly what to click and what will happen on your screen.
 
 ---
 
-## Act 1: The Landing Page & Role Chooser (1 Minute)
+## 🚀 How to Start the App (1 Step)
 
-1. **Observe the Hero Section:**
-   - Point to the headline: **"Verifiable E-Waste Lifecycle Tracking on Blockchain"**.
-   - Explain the 6 states on the diagram: `Registered → PickupRequested → Collected → InTransit → AtRecycler → Recycled`.
-
-2. **Explore the Five Role Portals:**
-   - Show the 5 role cards:
-     - **Regulator:** EPR Oversight & Governance
-     - **Producer:** Manufacturing & Product Registration
-     - **Consumer:** Ownership & Green Points
-     - **Collector:** Logistics & Pickup Verification
-     - **Recycler:** Material Recovery & Certification
-
-3. **Demonstrate Role Security (Negative Demo):**
-   - Scroll to the bottom card: **"Viva Defense Demonstration: Negative Security Test"**.
-   - Click the yellow button: **"Attempt Unauthorized Action (Send Producer Call from Consumer Wallet)"**.
-   - Show the immediate red alert box:
-     `❌ Transaction Rejected by Smart Contract: execution reverted: "EWT: caller lacks required role"`.
-   - **Viva Explanation:** *"The smart contract validates permissions at the EVM bytecode level. Even if someone hacks the frontend, the blockchain immediately rejects unauthorized calls."*
+1. Double-click the file named **`start-demo.bat`** in your `C:\ecochain` folder.
+2. Wait about 20 seconds. Terminal windows will open, and your browser will automatically open to `http://localhost:5173`.
+3. Look at the **top right corner** of the page. You will see a dropdown labeled **"Role:"**. You can switch roles from **any page, anytime** using this dropdown!
 
 ---
 
-## Act 2: Role Sign-In & Live Self-Registration (1 Minute)
+## 🎬 5-Minute Complete Demo (Follow Step-by-Step)
 
-1. **Connect a Wallet:**
-   - On the top right of the landing page, click **"Use Demo Account"**.
-   - A modal appears showing Accounts #0 through #9.
-   - Point out that:
-     - Account #0 is **Admin (Regulator)**
-     - Account #1 is **Producer**
-     - Account #2 is **Consumer**
-     - Account #3 is **Collector**
-     - Account #4 is **Recycler**
-     - Account #5 is **Unregistered**
-2. **Demonstrate Self-Registration:**
-   - Click **"Connect"** on **Demo Account #5**.
-   - The on-chain role detector identifies this address as unregistered and displays the **"Register on EcoChain"** card.
-   - Select role: **Consumer**, and click **"Complete Registration on Blockchain"**.
-   - The transaction confirms; the top-right badge turns green: **Consumer**.
-   - Click **"Enter Consumer Portal"**.
+### Step 1: See the Public Dashboard
+1. On the left sidebar, click **"Dashboard"**.
+2. Look at the screen:
+   - You will see 4 big KPI cards at the top: **Devices Registered**, **Recycling Rate**, **Material Recovered**, and **Green Points**.
+   - You will see the **E-Waste Lifecycle Pipeline** showing the 6 stages.
+   - You will see a colorful round **Donut Chart** and a **Category Bar Chart**.
 
 ---
 
-## Act 3: Complete End-to-End E-Waste Lifecycle (3 Minutes)
+### Step 2: Producer Makes a Laptop (Role: Demo #1)
+1. At the top right, change the **Role:** dropdown to **"Demo #1: Producer"**.
+2. In the left sidebar, click **"Producer Portal"**.
+3. Under the box **"Register New E-Waste Device"**, type:
+   - **Product Name:** `Dell XPS 15`
+   - **Brand:** `Dell`
+   - **Model Number:** `9520`
+   - **Serial Number:** `DELL-2026-XPS`
+   - **Category:** Select `IT & telecom (ITEW)`
+4. Click the green button: **"Register Device on Blockchain"**.
+5. Look at the message: It will give you your new **Device ID** (for example, `#36` or `#37`). **Remember this number!**
 
-### Step 1: Producer Registers a New Device
-1. In the left sidebar, click **Switch Wallet** or go to Home and select **Demo Account #1 (Producer)**.
-2. In the sidebar, click **Producer Portal**.
-3. Under **"Register New E-Waste Device"**, fill in:
-   - **Product Name:** `MacBook Pro M2`
-   - **Brand:** `Apple`
-   - **Model Number:** `A2779`
-   - **Serial Number:** `C02G1234EPR`
-   - **Category:** `IT & telecom (ITEW)`
-4. Click **"Register Device on Blockchain"**.
-5. Note the newly generated **Device ID** (e.g., `#37`) and the printable warranty claim card with its cryptographic metadata SHA-256 hash.
+---
 
-### Step 2: Consumer Claims Ownership & Requests Pickup
-1. Switch wallet to **Demo Account #2 (Consumer)** and go to **Consumer Portal**.
-2. Under **"Claim a New Device"**:
-   - Enter the Device ID: `#37`.
-   - Click **"Claim Device Ownership"**.
-   - Device `#37` immediately appears in your **"My Registered Electronic Devices"** table.
-3. Click the yellow **"Schedule Eco-Pickup"** button next to Device `#37`.
-4. Enter address/notes: `Pickup from 4th Floor Tech Park`.
+### Step 3: Consumer Buys & Requests Pickup (Role: Demo #2)
+1. At the top right, change the **Role:** dropdown to **"Demo #2: Consumer A"**.
+2. In the left sidebar, click **"Consumer Portal"**.
+3. Under the box **"Claim a New Device"**:
+   - In the **Device ID** box, type the number from Step 2 (e.g., `36` or `37`).
+   - Click the green button: **"Claim Device Ownership"**.
+   - Your device will now appear in your **"My Registered Electronic Devices"** table below!
+4. On that table, find your device and click the yellow button: **"Schedule Eco-Pickup"**.
 5. Click **"Submit On-Chain Pickup Request"**.
-6. The status chip updates to **Pickup requested**.
-
-### Step 3: Collector Confirms Collection & Dispatches to Recycler
-1. Switch wallet to **Demo Account #3 (Collector)** and go to **Collector Portal**.
-2. Under **"Pending E-Waste Pickups Queue"**, find Device `#37`.
-3. Click **"Confirm Pickup"** (enters custody, status becomes **Collected**).
-4. Under **"Devices Currently in Collector Custody"**, find Device `#37`.
-5. Select destination recycler: **Demo Account #4 (Licensed Recycler)**.
-6. Click **"Dispatch Consignment"**.
-7. The status chip updates to **In transit**.
-
-### Step 4: Recycler Intake & Live Mass-Balance Enforcement
-1. Switch wallet to **Demo Account #4 (Recycler)** and go to **Recycler Portal**.
-2. Under **"Incoming Consignments (Awaiting Physical Intake)"**, locate Device `#37`.
-3. Enter received gross weight: `2000` grams.
-4. Click **"Confirm Physical Intake & Weighing"**.
-5. The device moves to **"Active Recycling: Mass-Balance Processing & Certification"**.
-
-#### Negative Test: Demonstrate Mass-Balance Rejection
-- Enter: **Recovered Weight:** `1500g`, **Residual Waste:** `300g` (Sum = 1800g != 2000g).
-- Notice the live red mathematical alert: `❌ Mass Balance Mismatch: 1500g + 300g = 1800g != 2000g`.
-- The button is disabled. If submitted, the smart contract reverts with `EWT: mass balance mismatch`.
-
-#### Positive Test: Complete Recycling & Anchor Certificate
-- Correct the residual weight to: `500g` (Sum = 1500g + 500g = 2000g).
-- Notice the live green alert: `✓ Mass Balance Invariant Satisfied: 1500g + 500g = 2000g`.
-- Click **"Generate Certificate & Complete Recycling"**.
-- The app builds the official PDF certificate in browser memory using jsPDF, computes its exact SHA-256 hash, anchors the hash to the smart contract, and uploads the raw PDF to the backend.
-- The status chip permanently updates to **Recycled**!
+6. The status badge will change to yellow: **Pickup requested**.
 
 ---
 
-## Act 4: Public Verification & Cryptographic Tamper Demo (1 Minute)
-
-1. In the sidebar, click **Verify Certificate** (Public view, no wallet required).
-2. Click **"Click to select or drop a Certificate PDF here"** and select the PDF downloaded in Act 3 (or from `C:\ecochain` or browser Downloads).
-3. The browser calculates the SHA-256 fingerprint locally in under 10ms and queries the smart contract reverse mapping `certificateDevice(hash)`.
-4. **Authentic Result:**
-   - A bright green card appears: **"Authentic Recycling Certificate Verified"**.
-   - Displays Device ID, Recycler address, Producer, verified weights (`1500g recovered + 500g residual = 2000g received`), and timestamp.
-5. **The Viva Tamper Demo (Killer Feature):**
-   - Click the yellow button: **"Simulate 1-Byte Tamper (Viva Demo)"**.
-   - Explain to the examiner: *"We modified exactly one single byte in memory (byte #42) of the authentic PDF and re-computed the SHA-256 hash."*
-   - Show the result:
-     - Original Hash: `0x9a3fcb...` → Device #37 (Authentic ✅)
-     - Tampered Hash: `0x6505c6...` → Device 0 (Rejected ❌)
-   - **Viva Explanation:** *"Even a one-letter alteration in the certificate invalidates the mathematical fingerprint. The regulator and public can trust the certificate without trusting any human intermediary."*
+### Step 4: Collector Picks Up the Device (Role: Demo #3)
+1. At the top right, change the **Role:** dropdown to **"Demo #3: Collector"**.
+2. In the left sidebar, click **"Collector Portal"**.
+3. Under **"Pending E-Waste Pickups Queue"**, find your device number.
+4. Click the purple button: **"Confirm Pickup"**.
+   - The device moves down to **"Devices Currently in Collector Custody"**!
+5. Now choose the Recycler from the dropdown: select **"Demo #4 (Licensed Recycler)"**.
+6. Click the orange button: **"Dispatch Consignment"**.
+7. The status badge will change to orange: **In transit**.
 
 ---
 
-## Act 5: Green Points & Circular Economy (30 Seconds)
+### Step 5: Recycler Weighs & Recycles with Mass Balance (Role: Demo #4)
+1. At the top right, change the **Role:** dropdown to **"Demo #4: Recycler"**.
+2. In the left sidebar, click **"Recycler Portal"**.
+3. Under **"Incoming Consignments"**, find your device number.
+4. In the weight box, type: `2000` (this means 2,000 grams).
+5. Click the teal button: **"Confirm Physical Intake & Weighing"**.
+   - The device moves to the **"Process & Certify"** box below!
 
-1. Switch back to **Demo Account #2 (Consumer)** and open **Consumer Portal**.
-2. Notice the Green Points balance card has credited **15 points** (1 point per 100g of recovered material).
-3. Under **"Redeem Points for Partner Rewards"**:
-   - Select Producer: `Demo #1 (Apple)`
-   - Enter points: `10`
+#### 🔥 The "Viva Defense" Test (Showing the Teacher that Cheating is Blocked):
+6. In **Recovered Weight (grams)**, type: `1500`.
+7. In **Residual Waste (grams)**, type: `300`.
+   - Look at the red warning: **"❌ Mass Balance Mismatch: 1500g + 300g = 1800g != 2000g"**.
+   - The button is disabled! The smart contract will never allow a recycler to dump waste or lie about weights!
+8. Now change **Residual Waste (grams)** to: `500`.
+   - Look at the green message: **"✓ Mass Balance Invariant Satisfied: 1500g + 500g = 2000g"**!
+9. Click the green button: **"Generate Certificate & Complete Recycling"**.
+   - The app automatically generates the official PDF certificate and writes its SHA-256 fingerprint into the blockchain!
+10. Click the button: **"Download Certificate PDF"** to save it to your computer.
+
+---
+
+### Step 6: Verify the Certificate (Public — Anti-Forgery Demo)
+1. In the left sidebar, click **"Verify Certificate"**.
+2. Click the big box that says **"Click to select or drop a Certificate PDF here"**.
+3. Select the PDF you just downloaded in Step 5.
+4. In less than 1 second, a big green card appears:
+   - **"✅ Authentic Recycling Certificate Verified"**
+   - It shows the Device ID, the Recycler address, and the exact weights!
+
+#### 🔥 The "1-Byte Tamper" Demo (The Teacher's Favorite Feature):
+5. Click the yellow button: **"Simulate 1-Byte Tamper (Viva Demo)"**.
+6. Watch what happens:
+   - It changes just **1 byte** of the PDF in memory.
+   - The blockchain immediately flags it as **❌ Tampered / Invalid**!
+   - **Explain to your examiner:** *"Even if someone changes one letter, date, or number in the PDF, the blockchain mathematical hash will not match and it will be rejected!"*
+
+---
+
+### Step 7: Consumer Gets Green Points & Discounts (Role: Demo #2)
+1. At the top right, change the **Role:** dropdown to **"Demo #2: Consumer A"**.
+2. In the left sidebar, click **"Consumer Portal"**.
+3. Look at your **Green Points Balance** card: You now have points! (1 point for every 100g of material recovered).
+4. Under **"Redeem Points for Partner Rewards"**:
+   - Target Producer: Select `Demo #1 (Apple / Dell)`
+   - Points to Redeem: Type `10`
    - Click **"Redeem Points with Producer"**.
-4. The on-chain balance updates immediately to `5 points`.
-5. Switch to **Producer Portal**: under **"Rewards Program"**, the Producer sees that 10 points have been redeemed with their brand!
+5. Your points balance decreases by 10 points.
+6. Now switch to **Demo #1: Producer** at the top right and go to **Producer Portal**:
+   - The producer can see that 10 points have been redeemed with their brand!
 
 ---
 
-## Act 6: Regulator Governance & Offline Resilience (1 Minute)
-
-1. Switch to **Demo Account #0 (Regulator)** and open **Regulator Portal**.
-2. Under **"Registered Network Participants"**:
-   - Locate any participant address.
-   - Click **"Suspend Account"**.
-   - Switch to that suspended account: an on-screen banner confirms `Account Suspended`. Any attempted transaction reverts with `EWT: account suspended`.
-   - Click **"Reinstate Account"** to restore permissions.
-3. Open **Dashboard**:
-   - Show the 4 KPI cards, the 6-stage lifecycle pipeline strip, the pure SVG Donut chart, and the category breakdown.
-4. **Demonstrate Graceful Offline Fallback:**
-   - In your backend terminal window, press `Ctrl+C` to stop the backend server.
-   - Refresh the Dashboard.
-   - Show the yellow notice: `Offline Notice: Backend SQLite indexer is offline. Top KPI cards, Donut chart, and Pipeline strip are running live from the Ethereum smart contract.`
-   - Point out that all 4 KPI cards and the Donut chart still work 100% directly from the blockchain!
+### Step 8: Regulator Powers (Role: Demo #0)
+1. At the top right, change the **Role:** dropdown to **"Demo #0: Regulator (Admin)"**.
+2. In the left sidebar, click **"Regulator Portal"**.
+3. You will see the list of all registered companies and users on the blockchain.
+4. You can click **"Suspend Account"** on any user to freeze them, or **"Reinstate Account"** to unfreeze them.
+5. You can also click **"Pause All Contract Activity"** in case of an emergency!
 
 ---
 
-## Conclusion
-You have just demonstrated a full, production-grade Web3 application fulfilling every requirement of Extended Producer Responsibility (EPR) tracking, mass-balance invariant proof, cryptographic document tamper-evidence, and role-based access control.
+## 🎯 Summary for Your Exam
+You have tested:
+- 1. **Registration** by Producer
+- 2. **Claiming & Pickup** by Consumer
+- 3. **Custody & Transport** by Collector
+- 4. **Mass-Balance Check ($1500 + 500 = 2000$)** by Recycler
+- 5. **PDF Certificate Creation & Blockchain Anchoring**
+- 6. **Tamper Proof Verification** (1 byte change fails)
+- 7. **Green Points Circular Rewards**
+- 8. **Regulator Governance & Suspensions**
