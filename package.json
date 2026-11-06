@@ -9,6 +9,7 @@
     "deploy": "npm --prefix blockchain run deploy",
     "seed": "npm --prefix blockchain run seed",
     "test": "npm --prefix blockchain test",
+    "e2e": "node blockchain/scripts/e2e.js",
     "backend": "npm --prefix backend start",
     "frontend": "npm --prefix frontend run dev"
   }

@@ -1,101 +1,91 @@
-# EcoChain: Blockchain-Based E-Waste Collection & Recycling Tracking
-## Technical Project Report · Group 15
+# EcoChain V2: Blockchain-Based E-Waste Collection & Recycling Tracking
+## Technical Project Report · Group 15 (Version 2)
 
 ---
 
 ### Abstract
-Electronic waste (e-waste) is one of the fastest-growing solid waste streams in the world. Traditional supply chains suffer from information asymmetry, unverified recycling claims, and vulnerability to centralized record manipulation. **EcoChain** implements a decentralized, multi-stakeholder lifecycle management system on an Ethereum-compatible blockchain. Using a single Solidity smart contract (`EWasteTracker.sol`), the system enforces a strict 6-stage lifecycle, role-based access control, mathematical mass-balance verification, cryptographic document hashing, and an automated Green Points incentive model. The architecture is supported by a local event indexer and React frontend, providing an end-to-end, zero-cost, verifiable solution.
+Electronic waste (e-waste) is one of the fastest-growing solid waste streams globally. Traditional Extended Producer Responsibility (EPR) compliance suffers from information asymmetry, unverified recycling claims, forged recycling certificates, and centralized record manipulation. **EcoChain V2** is a decentralized, multi-stakeholder lifecycle management web application running on an Ethereum-compatible local blockchain (`chainId: 31337`). Powered by a single Solidity smart contract (`EWasteTracker.sol`), the system enforces a strict 6-stage lifecycle, self-service role onboarding, consumer warranty device claiming, mathematical mass-balance verification (`recoveredGrams + residualGrams == receivedGrams`), duplicate certificate protection, client-side PDF certificate generation and SHA-256 hash anchoring, and an automated Green Points reward and redemption economy. The architecture is supported by a resilient SQLite event indexer and a modern React single-page application supporting MetaMask and demo wallets across five role portals.
 
 ---
 
 ### 1. Introduction and Problem Statement
-Rapid technological turnover has resulted in unprecedented quantities of discarded consumer electronics and industrial equipment. Key industry challenges include:
-- **Lack of Multi-Party Provenance:** Devices pass through consumers, informal aggregators, logistics providers, and recyclers without an unalterable audit trail.
-- **Greenwashing & False Weight Reporting:** Recyclers may claim to recycle large volumes of e-waste while diverting toxic residuals to unsanctioned landfills.
-- **Centralized Database Risks:** Centralized registries are vulnerable to insider fraud, unauthorized database edits, or single points of failure.
+Rapid electronic obsolescence has created millions of tons of discarded hardware. Under current EPR laws, manufacturers must prove their products were responsibly collected and recycled. Key industry failures include:
+- **Paper & PDF Forgery:** Recyclers often issue static PDF certificates that can be trivially edited, reused for multiple devices, or fabricated without verification.
+- **Ghost Recycling & Weight Fraud:** Recyclers inflate recovered commodity weights while dumping hazardous fractions into informal landfills.
+- **Traceability Gaps:** Ownership transfers between consumers, informal aggregators, logistics collectors, and recyclers lack an immutable audit trail.
+- **Centralized Database Vulnerabilities:** Centralized registries are vulnerable to insider fraud, data tampering, or single points of failure.
 
 ---
 
 ### 2. Objectives
-- Implement an immutable ledger tracking e-waste through six distinct operational states.
-- Cryptographically enforce role-based permissions (Regulator, Producer, Consumer, Collector, Recycler).
-- Integrate on-chain mass-balance verification (`recoveredGrams + residualGrams == receivedGrams`).
-- Enable dual-layer document verification (recycling certificate SHA-256 and device metadata integrity).
-- Provide an automated consumer reward mechanism using Green Points.
-- Ensure 100% local, free, reproducible execution without third-party cloud or testnet dependencies.
+- Implement an immutable ledger tracking e-waste across six distinct operational states: `Registered → PickupRequested → Collected → InTransit → AtRecycler → Recycled`.
+- Provide self-service cryptographic role registration (`Producer`, `Consumer`, `Collector`, `Recycler`) with Regulator oversight (suspension, role override, and circuit-breaker pause).
+- Mathematically enforce the physical mass-balance invariant on-chain:
+  $$\text{recoveredGrams} + \text{residualGrams} = \text{receivedGrams}$$
+- Implement duplicate-proof certificate anchoring: ensure each certificate hash can only be used once on the entire blockchain.
+- Provide client-side cryptographic certificate generation (jsPDF) and zero-login public file verification with 1-byte tamper demonstration.
+- Automate a circular economic incentive model with Green Points earned by consumers and redeemed with registered producers.
+- Ensure 100% local, free, reproducible execution without third-party cloud, IPFS, or paid API dependencies.
 
 ---
 
-### 3. Literature Review
-The design builds upon foundational research in decentralized waste accounting:
-- **R. W. Ahmad, K. Salah, R. Jayaraman, I. Yaqoob, M. Omar (2021):** *"Blockchain for Waste Management in Smart Cities: A Survey," IEEE Access*, vol. 9. This survey highlights that the primary bottlenecks in smart waste management are trust deficits among unaligned commercial entities and the absence of verifiable physical-to-digital state tracking. EcoChain directly addresses these recommendations through automated state transitions and on-chain mass balance constraints.
-- **Related Supply-Chain Projects:** Open-source supply-chain architectures (such as *PlasticTrace* by Sai-Narayana, which was reviewed conceptually during preliminary evaluation) demonstrate multi-persona simulation in local testing. EcoChain develops an independent, end-to-end e-waste lifecycle implementation featuring mathematical mass-balance invariants, automated Green Points, and a chain-reset-resilient SQLite indexer without copying third-party code.
+### 3. Literature Review & Related Work
+The design synthesizes principles from supply-chain provenance and decentralized environmental compliance:
+- **R. W. Ahmad, K. Salah, R. Jayaraman, I. Yaqoob, M. Omar (2021):** *"Blockchain for Waste Management in Smart Cities: A Survey," IEEE Access*, vol. 9. Emphasizes that trust deficits among unaligned commercial entities and the absence of verifiable physical-to-digital state tracking are the primary bottlenecks in smart waste management. EcoChain addresses these recommendations directly through smart contract state transitions and on-chain mass-balance constraints.
+- **Related Open-Source Supply-Chain Implementations:** Conceptual architectures (such as *PlasticTrace* by Sai-Narayana, reviewed during initial project scoping) demonstrate multi-persona simulation on Hardhat. EcoChain implements an independent, full-stack e-waste architecture with mathematical mass-balance invariants, duplicate certificate protection, client-side PDF hashing, a resilient SQLite indexer, and dual-wallet connection without reusing third-party code.
 
 ---
 
-### 4. Why Blockchain & Design Decisions
-Blockchain is used exclusively for immutable state authority, access control, and mathematical guarantees:
-- **State Machine Authority:** Only the smart contract decides whether a transition is permissible.
-- **On-Chain vs. Off-Chain Partitioning:** Full technical specifications and catalog data are maintained in a lightweight SQLite database to conserve gas, while their cryptographic SHA-256 hashes are anchored to the blockchain. Any tampering with the database produces an immediate hash mismatch.
-- **Decoupled Architecture:** The web frontend interacts directly with the smart contract via RPC, ensuring core operations function even if the indexing backend is offline.
+### 4. Why Blockchain & Architectural Decisions
+Blockchain is used strictly for state authority, access control, and mathematical proof:
+- **State Machine Authority:** Only the smart contract decides whether a transition is valid. A consumer cannot register devices; a collector cannot complete recycling.
+- **Dual-Layer Hash Anchoring:** Full product catalogs and raw PDFs are stored off-chain in SQLite to minimize gas costs, while their cryptographic SHA-256 hashes are anchored to the blockchain. If database records are edited off-chain, the frontend immediately flags a hash mismatch.
+- **Decoupled Client Architecture:** The React frontend connects directly to the blockchain via RPC. If the backend server stops, the public dashboard, tracking, and role portals continue operating directly against the smart contract.
 
 ---
 
 ### 5. System Architecture, Roles, and Lifecycle
-The system partitions responsibilities across five distinct roles:
-1. **Regulator (Admin):** Deploys the contract, assigns stakeholder roles, and holds emergency pause authority.
-2. **Producer:** Registers manufactured devices into the system, locking in initial category and metadata hashes.
-3. **Consumer:** Exercises device ownership and initiates pickup requests.
-4. **Collector:** Confirms physical collection and dispatches devices to designated certified recyclers.
-5. **Recycler:** Confirms received weights, processes materials, proves mass balance, and anchors certificate hashes.
+The architecture partitions responsibilities across five distinct roles:
+1. **Regulator (Admin):** Deploys the contract, oversees participant registries, holds emergency pause authority, and can suspend/reinstate non-compliant accounts.
+2. **Producer:** Self-registers, registers manufactured electronic devices with canonical metadata hashes, and honors consumer Green Points vouchers.
+3. **Consumer:** Self-registers, claims warranty ownership of purchased devices by ID, schedules certified e-waste pickups, and earns/redeems Green Points.
+4. **Collector:** Self-registers, verifies physical collection from consumers, maintains custody, and dispatches consignments to licensed recyclers.
+5. **Recycler:** Self-registers, confirms physical intake weighing, inputs recovered/residual material weights under mass-balance verification, generates and anchors official PDF certificates, and uploads files to the indexer.
 
 The 6-stage lifecycle transitions strictly as:
 $$\text{Registered (0)} \to \text{PickupRequested (1)} \to \text{Collected (2)} \to \text{InTransit (3)} \to \text{AtRecycler (4)} \to \text{Recycled (5)}$$
 
 ---
 
-### 6. Smart Contract Design
-`EWasteTracker.sol` is written in Solidity `0.8.24` and compiled using EVM Paris with optimizer runs set to 200:
-- **Custom Error Codes:** Standardized `EWT: ...` error prefixes ensure clear revert attribution.
-- **Mass Balance Enforcement:**
-  $$\text{recoveredGrams} + \text{residualGrams} = \text{receivedGrams}$$
-  Transactions failing this assertion revert immediately, preventing fraudulent weight documentation.
-- **Dual Hash Verification:**
-  - `verifyCertificate(deviceId, certificateHash)`: Validates that the submitted recycling certificate matches the finalized certificate anchored by the recycler.
-  - `verifyMetadata(deviceId, metaHash)`: Ensures the device's technical specifications have not been tampered with off-chain.
-- **Green Points Distribution:** Automatically credits the original consumer account with $\lfloor \text{recoveredGrams} / 100 \rfloor$ upon completion of recycling.
+### 6. The Recycling Certificate: End-to-End
+1. **Generation:** When a Recycler confirms mass balance, the frontend builds the official recycling certificate in browser memory using `jsPDF` (incorporating device ID, category, participant addresses, timestamps, and mass-balance breakdown).
+2. **Hashing:** The browser calculates the SHA-256 digest of the exact PDF bytes using WebCrypto (`crypto.subtle.digest`).
+3. **Anchoring:** The transaction `completeRecycling(..., certHash)` sends the hash to the contract. The contract checks `certificateDevice[certHash] == 0` (preventing certificate reuse) and maps the hash to the device ID.
+4. **Storage:** The raw PDF bytes are uploaded to `POST /api/certificates/:deviceId`. The backend independently recalculates the SHA-256 hash and rejects any upload that does not match the on-chain hash.
+5. **Public Verification:** Any citizen or regulator visits `/verify` without logging in. Dropping the PDF recalculates the SHA-256 hash in browser memory and queries `certificateDevice(hash)`. If found, the contract returns the device ID and displays full recycling proof (✅). If altered even by 1 byte, the hash differs and the check fails (❌).
 
 ---
 
-### 7. Implementation Details
-- **Blockchain Layer:** Hardhat local node on chainId 31337. Local signers simulate seven distinct personas without hardcoding private keys in source files.
-- **Backend Layer:** Express 4 server on port 4000 utilizing `better-sqlite3`. The event indexer synchronizes logs through `ethers.provider.getLogs` and automatically detects chain restarts (resetting SQLite data when block tip hashes change).
-- **Frontend Layer:** React 18.3.1 with Vite 5, providing 10 specialized views including persona switching, live lifecycle consoles, document hash comparison, and responsive CSS bar analytics.
+### 7. Implementation Stack & Technical Metrics
+- **Smart Contract:** Solidity `0.8.24` (EVM Paris, 200 optimizer runs), Hardhat `2.29.1`, `chainId: 31337`.
+- **Backend:** Node.js 22 LTS, Express 4, `better-sqlite3` 11. Event indexer with automated chain-reset detection and 3MB payload support for binary PDF streams.
+- **Frontend:** React `18.3.1`, Vite 5, `ethers@6.13.5`, `jspdf@2.5.2`, `lucide-react@0.383.0`. Plain CSS design system (`#0b3d33` dark green palette, pure SVG donut and bar charts, responsive tables).
+- **Wallet Layer:** `WalletProvider` supporting both browser MetaMask (with automated chain switching to `0x7a69`) and unlocked Hardhat demo accounts #0 to #9.
 
 ---
 
-### 8. Testing and Results
-- **Automated Test Suite:** 31 tests executed with Mocha/Chai covering access control, state machine integrity, mass balance assertions, Green Points calculation, pause mechanisms, and negative exploit attempts. All 31 tests passed.
-- **Simulated Population:** 30 simulated e-waste devices seeded across all seven official categories (ITEW, CEEW, LSEEW, EETW, TLSEW, MDW, LIW) and all six lifecycle stages.
-- **Negative Test Confirmations:** Live transactions confirmed rejections for unauthorized actors (`EWT: caller lacks required role`), invalid weight balances (`EWT: mass balance mismatch`), and tampered hashes.
+### 8. Testing, Verification & Results
+- **Unit Test Suite:** 54 passing automated tests in `blockchain/test/EWasteTracker.test.js` covering self-registration, role access controls, suspension/reinstatement, device claiming, mass balance, certificate uniqueness, Green Points, and pause circuit-breakers.
+- **Simulated Population:** 30 simulated e-waste devices seeded across all 7 EPR categories and all 6 lifecycle stages with unique generated certificates.
+- **End-to-End (E2E) Test Suite:** 22/22 passing automated tests in `blockchain/scripts/e2e.js` (`npm run e2e`) validating the full live pipeline, negative rejections, duplicate hash rejection, and byte-level certificate downloads.
 
 ---
 
-### 9. Security Considerations
-- **No Private Keys in Code:** Signers are unlocked development accounts managed by the local node.
-- **SQL Injection Prevention:** All database queries utilize parameterized prepared statements.
-- **Input Sanitization:** String inputs and weights undergo explicit boundary checks (`receivedGrams > 0`, non-empty hashes).
-- **Circuit Breaker:** Emergency `pause()` and `unpause()` functions allow administrators to halt operations during system audits.
+### 9. Limitations & Boundaries
+- **Physical Weighing:** While the smart contract proves that reported weights satisfy `received == recovered + residual`, it cannot physically verify scale accuracy without IoT-connected certified hardware scales.
+- **Local Scope:** EcoChain V2 is designed as a self-contained local educational prototype; a production rollout would deploy to an enterprise L2 rollup or consortium network.
 
 ---
 
-### 10. Limitations and Future Work
-- **Oracle Dependency:** Material weights currently rely on recycler input; future work includes integrating certified IoT industrial scales connected via decentralized oracles (e.g., Chainlink).
-- **Layer 2 Deployment:** Deployment on an Ethereum L2 rollup (such as Arbitrum or Base) to support high transaction throughput with negligible gas costs.
-- **Decentralized Storage:** Migration of PDF certificates and extended metadata from local SQLite to IPFS/Arweave.
-- **Fungible Green Points:** Wrapping Green Points into an ERC-20 standard token to facilitate redemption across partner retail ecosystems.
-
----
-
-### 11. Conclusion
-EcoChain demonstrates a robust, transparent, and computationally verifiable model for managing the e-waste lifecycle. By embedding domain-level mass-balance rules and cryptographic verification into Solidity smart contracts, the system eliminates administrative fraud and greenwashing while incentivizing responsible disposal.
+### 10. Conclusion
+EcoChain V2 proves that combining domain-specific mass-balance invariants, cryptographic document hashing, and role-based smart contracts solves the critical trust and fraud vulnerabilities in modern electronic waste recycling.
