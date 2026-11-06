@@ -24,35 +24,47 @@ export default function RecyclerPortal() {
 
       // 1. Incoming dispatches designated to me (status = 3)
       const inTransit = await api.devices({ status: 3 });
+      const inTransitList = Array.isArray(inTransit) ? inTransit : Array.isArray(inTransit?.data) ? inTransit.data : [];
       const incoming = [];
-      for (const d of inTransit) {
-        const onChain = await c.getDevice(d.id);
-        if (onChain.pendingRecipient.toLowerCase() === address.toLowerCase()) {
-          incoming.push({ ...d, pendingRecipient: onChain.pendingRecipient });
-        }
+      for (const d of inTransitList) {
+        if (!d || !d.id) continue;
+        try {
+          const onChain = await c.getDevice(d.id);
+          if (onChain.pendingRecipient.toLowerCase() === address.toLowerCase()) {
+            incoming.push({ ...d, pendingRecipient: onChain.pendingRecipient });
+          }
+        } catch {}
       }
       setIncomingDevices(incoming);
 
       // 2. Devices at recycler in my custody (status = 4)
       const atFacility = await api.devices({ status: 4 });
+      const atFacilityList = Array.isArray(atFacility) ? atFacility : Array.isArray(atFacility?.data) ? atFacility.data : [];
       const myFacility = [];
-      for (const d of atFacility) {
-        const onChain = await c.getDevice(d.id);
-        if (onChain.custodian.toLowerCase() === address.toLowerCase()) {
-          myFacility.push({
-            ...d,
-            custodian: onChain.custodian,
-            receivedGrams: Number(onChain.receivedGrams),
-          });
-        }
+      for (const d of atFacilityList) {
+        if (!d || !d.id) continue;
+        try {
+          const onChain = await c.getDevice(d.id);
+          if (onChain.custodian.toLowerCase() === address.toLowerCase()) {
+            myFacility.push({
+              ...d,
+              custodian: onChain.custodian,
+              receivedGrams: Number(onChain.receivedGrams),
+            });
+          }
+        } catch {}
       }
       setAtRecyclerDevices(myFacility);
 
       // 3. Completed recycled devices by me (status = 5)
       const allRecycled = await api.devices({ status: 5 });
-      setIssuedCerts(allRecycled.filter((d) => (d.recycler || "").toLowerCase() === address.toLowerCase()));
+      const recycledList = Array.isArray(allRecycled) ? allRecycled : Array.isArray(allRecycled?.data) ? allRecycled.data : [];
+      setIssuedCerts(recycledList.filter((d) => (d.recycler || "").toLowerCase() === address.toLowerCase()));
     } catch (e) {
-      console.warn(e.message);
+      console.warn("RecyclerPortal load error:", e.message);
+      setIncomingDevices([]);
+      setAtRecyclerDevices([]);
+      setIssuedCerts([]);
     }
   };
 

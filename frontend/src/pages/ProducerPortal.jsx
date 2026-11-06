@@ -3,7 +3,7 @@ import { useWallet } from "../wallet";
 import { readContract, sendTx, CATEGORIES, STATUS, deviceIdFromReceipt } from "../services/chain";
 import { metadataHash } from "../services/hash";
 import { api } from "../services/api";
-import { PlusCircle, Award, Box, Printer, CheckCircle2 } from "lucide-react";
+import { PlusCircle, Award, Box, Printer, CheckCircle2, RefreshCw } from "lucide-react";
 
 export default function ProducerPortal() {
   const { signer, address } = useWallet();
@@ -25,13 +25,17 @@ export default function ProducerPortal() {
     if (!address) return;
     try {
       const c = readContract();
-      const pts = Number(await c.pointsRedeemedWith(address));
-      setRedeemedPoints(pts);
+      try {
+        const pts = Number(await c.pointsRedeemedWith(address));
+        setRedeemedPoints(pts);
+      } catch {}
 
-      const all = await api.devices({ producer: address });
-      setDevices(all);
+      const res = await api.devices({ producer: address });
+      const list = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : [];
+      setDevices(list);
     } catch (e) {
-      console.warn(e.message);
+      console.warn("ProducerPortal load error:", e.message);
+      setDevices([]);
     }
   };
 
@@ -46,63 +50,99 @@ export default function ProducerPortal() {
     setStatusMsg(null);
     setRegisteredItem(null);
 
-    const meta = { name, brand, model, serial, notes };
-    const hash = metadataHash(meta);
+    try {
+      const meta = { name, brand, model, serial, notes };
+      const hash = await metadataHash(meta);
 
-    const res = await sendTx(signer, "registerDevice", [Number(category), hash, `Registered ${name}`]);
-    if (res.ok) {
-      const id = deviceIdFromReceipt(res.contract, res.receipt);
-      if (id) {
-        await api.postMetadata(id, meta);
-        const claimCode = `ECO-CLAIM-${id}-${hash.slice(2, 8).toUpperCase()}`;
-        setRegisteredItem({ id, name, claimCode, hash });
+      const res = await sendTx(signer, "registerDevice", [Number(category), hash, `Registered ${name}`]);
+      if (res.ok) {
+        const id = deviceIdFromReceipt(res.contract, res.receipt);
+        if (id) {
+          await api.saveMetadata(id, meta);
+          const claimCode = `ECO-CLAIM-${id}-${hash.slice(2, 8).toUpperCase()}`;
+          setRegisteredItem({ id, name, claimCode, hash });
+        }
+        setStatusMsg({ ok: true, text: `Product registered on blockchain! (Tx: ${res.hash ? res.hash.slice(0, 10) : ""}…)` });
+        setName("");
+        setBrand("");
+        setModel("");
+        setSerial("");
+        await loadProducerData();
+      } else {
+        setStatusMsg({ ok: false, text: res.error });
       }
-      setStatusMsg({ ok: true, text: `Product registered on blockchain! (Tx: ${res.hash.slice(0, 10)}…)` });
-      setName("");
-      setBrand("");
-      setModel("");
-      setSerial("");
-      await loadProducerData();
-    } else {
-      setStatusMsg({ ok: false, text: res.error });
+    } catch (err) {
+      setStatusMsg({ ok: false, text: err.message });
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
   };
 
+  const devList = Array.isArray(devices) ? devices : [];
+  const recycledCount = devList.filter((d) => d && d.status === 5).length;
+
   return (
-    <div className="page-container">
-      <div className="page-header">
-        <h1>Producer Management Console</h1>
-        <p>Register electronic hardware into the decentralized tracking stream, issue claim codes, and view voucher redemptions.</p>
+    <div>
+      <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <h1 style={{ margin: "0 0 6px" }}>Producer Management Console</h1>
+          <p style={{ color: "var(--text-muted)", margin: 0 }}>
+            Register electronic hardware into the decentralized tracking stream, issue claim codes, and view voucher redemptions.
+          </p>
+        </div>
+        <button
+          className="btn btn-outline"
+          onClick={loadProducerData}
+          style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13 }}
+        >
+          <RefreshCw size={14} /> Refresh Catalog
+        </button>
       </div>
 
       {statusMsg && (
-        <div className={`alert ${statusMsg.ok ? "alert-ok" : "alert-err"}`}>
+        <div style={{ marginBottom: 20, padding: 12, borderRadius: 8, background: statusMsg.ok ? "#f0fdf4" : "#fef2f2", color: statusMsg.ok ? "#166534" : "#991b1b", border: `1px solid ${statusMsg.ok ? "#bbf7d0" : "#fecaca"}`, fontSize: 14 }}>
           {statusMsg.text}
         </div>
       )}
 
       {/* KPI Cards */}
-      <div className="grid-3" style={{ marginBottom: 24 }}>
+      <div className="kpi-grid" style={{ marginBottom: 24 }}>
         <div className="kpi-card">
-          <div className="kpi-icon" style={{ backgroundColor: "#dbeafe", color: "#2563eb" }}><Box size={24} /></div>
-          <div className="kpi-content">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <span className="kpi-label">Registered Products</span>
-            <span className="kpi-value">{devices.length}</span>
+            <div style={{ background: "#dbeafe", padding: 6, borderRadius: 8 }}>
+              <Box size={18} color="#2563eb" />
+            </div>
+          </div>
+          <div className="kpi-value">{devList.length}</div>
+          <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
+            Manufactured and anchored on-chain
           </div>
         </div>
+
         <div className="kpi-card">
-          <div className="kpi-icon" style={{ backgroundColor: "#dcfce7", color: "#16a34a" }}><Award size={24} /></div>
-          <div className="kpi-content">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <span className="kpi-label">Points Redeemed With You</span>
-            <span className="kpi-value">{redeemedPoints} pts</span>
+            <div style={{ background: "#dcfce7", padding: 6, borderRadius: 8 }}>
+              <Award size={18} color="#16a34a" />
+            </div>
+          </div>
+          <div className="kpi-value">{redeemedPoints} pts</div>
+          <div style={{ fontSize: 12, color: "#16a34a", marginTop: 4 }}>
+            Customer discount vouchers redeemed
           </div>
         </div>
+
         <div className="kpi-card">
-          <div className="kpi-icon" style={{ backgroundColor: "#fef3c7", color: "#d97706" }}><CheckCircle2 size={24} /></div>
-          <div className="kpi-content">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <span className="kpi-label">Recycled End-of-Life</span>
-            <span className="kpi-value">{devices.filter((d) => d.status === 5).length}</span>
+            <div style={{ background: "#fef3c7", padding: 6, borderRadius: 8 }}>
+              <CheckCircle2 size={18} color="#d97706" />
+            </div>
+          </div>
+          <div className="kpi-value">{recycledCount}</div>
+          <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
+            Devices certified recycled
           </div>
         </div>
       </div>
@@ -112,7 +152,7 @@ export default function ProducerPortal() {
         <div className="card" style={{ border: "2px solid #16a34a", background: "#f0fdf4", marginBottom: 24 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
             <div>
-              <span className="status-chip status-5" style={{ marginBottom: 6 }}>Device Created Successfully</span>
+              <span className="badge badge-recycler" style={{ marginBottom: 6, display: "inline-block" }}>Device Created Successfully</span>
               <h2 style={{ margin: "4px 0", color: "#166534" }}>Device #{registeredItem.id}: {registeredItem.name}</h2>
               <p style={{ margin: "4px 0 10px", fontSize: 14, color: "#334155" }}>
                 Provide this Claim Code to the purchasing consumer (print on packaging or warranty card):
@@ -121,7 +161,7 @@ export default function ProducerPortal() {
                 {registeredItem.claimCode}
               </div>
             </div>
-            <button className="btn btn-secondary" onClick={() => window.print()} style={{ display: "flex", gap: 6 }}>
+            <button className="btn btn-outline" onClick={() => window.print()} style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <Printer size={16} /> Print Claim Voucher
             </button>
           </div>
@@ -130,59 +170,59 @@ export default function ProducerPortal() {
 
       {/* Register Product Form */}
       <div className="card" style={{ marginBottom: 28 }}>
-        <h3 className="card-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <h3 className="card-title" style={{ display: "flex", alignItems: "center", gap: 8, margin: "0 0 8px" }}>
           <PlusCircle size={20} color="#16a34a" /> Register New Electronic Product
         </h3>
-        <p style={{ fontSize: 13, color: "#64748b", margin: "0 0 16px" }}>
-          This locks in the initial category and SHA-256 metadata hash on the blockchain. The owner field remains unclaimed until registered by a consumer.
+        <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "0 0 16px" }}>
+          This locks in the initial category and SHA-256 metadata hash on the blockchain. The owner field remains unclaimed until claimed by a consumer.
         </p>
 
         <form onSubmit={handleRegister}>
-          <div className="grid-2">
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14, marginBottom: 14 }}>
             <div className="form-group">
-              <label>Product Name</label>
-              <input type="text" placeholder="e.g. ThinkPad T14" value={name} onChange={(e) => setName(e.target.value)} required />
+              <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Product Name</label>
+              <input type="text" placeholder="e.g. ThinkPad T14" value={name} onChange={(e) => setName(e.target.value)} required style={{ width: "100%", padding: "8px 12px" }} />
             </div>
             <div className="form-group">
-              <label>Manufacturer / Brand</label>
-              <input type="text" placeholder="e.g. Lenovo" value={brand} onChange={(e) => setBrand(e.target.value)} required />
+              <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Manufacturer / Brand</label>
+              <input type="text" placeholder="e.g. Lenovo" value={brand} onChange={(e) => setBrand(e.target.value)} required style={{ width: "100%", padding: "8px 12px" }} />
             </div>
             <div className="form-group">
-              <label>Model Number</label>
-              <input type="text" placeholder="e.g. 20W0003RUS" value={model} onChange={(e) => setModel(e.target.value)} required />
+              <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Model Number</label>
+              <input type="text" placeholder="e.g. 20W0003RUS" value={model} onChange={(e) => setModel(e.target.value)} required style={{ width: "100%", padding: "8px 12px" }} />
             </div>
             <div className="form-group">
-              <label>Serial Number</label>
-              <input type="text" placeholder="e.g. SN-883921" value={serial} onChange={(e) => setSerial(e.target.value)} />
+              <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Serial Number</label>
+              <input type="text" placeholder="e.g. SN-883921" value={serial} onChange={(e) => setSerial(e.target.value)} style={{ width: "100%", padding: "8px 12px" }} />
             </div>
           </div>
 
-          <div className="grid-2">
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14, marginBottom: 16 }}>
             <div className="form-group">
-              <label>Official Schedule I Category</label>
-              <select value={category} onChange={(e) => setCategory(e.target.value)}>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Official Schedule I Category</label>
+              <select value={category} onChange={(e) => setCategory(e.target.value)} style={{ width: "100%", padding: "8px 12px" }}>
                 {CATEGORIES.map((cat, idx) => (
                   <option key={idx} value={idx + 1}>{idx + 1}. {cat}</option>
                 ))}
               </select>
             </div>
             <div className="form-group">
-              <label>Production Notes</label>
-              <input type="text" value={notes} onChange={(e) => setNotes(e.target.value)} />
+              <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Production Notes</label>
+              <input type="text" value={notes} onChange={(e) => setNotes(e.target.value)} style={{ width: "100%", padding: "8px 12px" }} />
             </div>
           </div>
 
-          <button type="submit" className="btn btn-primary" disabled={busy} style={{ marginTop: 8 }}>
-            {busy ? "Submitting to Blockchain…" : "Register Product on Chain"}
+          <button type="submit" className="btn btn-primary" disabled={busy}>
+            {busy ? "Submitting to Blockchain…" : "Register Device on Blockchain"}
           </button>
         </form>
       </div>
 
       {/* My Products Table */}
       <div className="card">
-        <h3 className="card-title" style={{ marginBottom: 14 }}>My Registered Products Catalog</h3>
+        <h3 className="card-title" style={{ margin: "0 0 14px", fontSize: 18 }}>My Registered Products Catalog</h3>
         <div className="table-responsive">
-          <table>
+          <table style={{ width: "100%", fontSize: 13 }}>
             <thead>
               <tr>
                 <th>ID</th>
@@ -194,29 +234,29 @@ export default function ProducerPortal() {
               </tr>
             </thead>
             <tbody>
-              {devices.length === 0 ? (
-                <tr><td colSpan={6} style={{ textAlign: "center", color: "#64748b" }}>No products registered yet.</td></tr>
+              {devList.length === 0 ? (
+                <tr><td colSpan={6} style={{ textAlign: "center", color: "#64748b", padding: 24 }}>No products registered under this wallet yet. Register one above!</td></tr>
               ) : (
-                devices.map((d) => (
+                devList.map((d) => (
                   <tr key={d.id}>
                     <td><strong>#{d.id}</strong></td>
                     <td>
                       <div><strong>{d.meta?.name || `Device #${d.id}`}</strong></div>
                       <div style={{ fontSize: 12, color: "#64748b" }}>{d.meta?.brand} {d.meta?.model}</div>
                     </td>
-                    <td>{CATEGORIES[d.category - 1]}</td>
+                    <td>{CATEGORIES[d.category - 1] || "General"}</td>
                     <td>
                       {d.owner ? (
-                        <span style={{ fontFamily: "monospace", fontSize: 12 }}>Claimed: {d.owner.slice(0, 6)}…</span>
+                        <code style={{ fontSize: 12 }}>Claimed: {d.owner.slice(0, 6)}…</code>
                       ) : (
-                        <span className="status-chip status-0">Unclaimed (In Inventory)</span>
+                        <span className="badge badge-none">Unclaimed (In Inventory)</span>
                       )}
                     </td>
                     <td>
-                      <span className={`status-chip status-${d.status}`}>{STATUS[d.status]}</span>
+                      <span className={`badge badge-admin`}>{STATUS[d.status]}</span>
                     </td>
                     <td>
-                      <a href={`/track?id=${d.id}`} className="btn btn-secondary" style={{ padding: "4px 10px", fontSize: 12, textDecoration: "none" }}>
+                      <a href={`/track?id=${d.id}`} className="btn btn-outline" style={{ padding: "3px 8px", fontSize: 12, textDecoration: "none" }}>
                         View Trace
                       </a>
                     </td>

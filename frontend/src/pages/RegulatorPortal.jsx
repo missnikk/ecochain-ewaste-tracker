@@ -21,11 +21,15 @@ export default function RegulatorPortal() {
       const c = readContract();
       setPaused(await c.paused());
       const p = await api.participants();
-      setParticipants(p);
+      const pList = Array.isArray(p) ? p : Array.isArray(p?.data) ? p.data : [];
+      setParticipants(pList);
       const ev = await api.events(30);
-      setEvents(ev);
+      const evList = Array.isArray(ev) ? ev : Array.isArray(ev?.data) ? ev.data : [];
+      setEvents(evList);
     } catch (e) {
-      console.warn(e.message);
+      console.warn("RegulatorPortal load error:", e.message);
+      setParticipants([]);
+      setEvents([]);
     }
   };
 

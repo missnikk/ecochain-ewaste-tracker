@@ -25,20 +25,25 @@ export default function ConsumerPortal() {
     if (!address) return;
     try {
       const c = readContract();
-      const p = Number(await c.greenPoints(address));
-      setPoints(p);
+      try {
+        const p = Number(await c.greenPoints(address));
+        setPoints(p);
+      } catch {}
 
       const devs = await api.devices({ owner: address });
-      setMyDevices(devs);
+      const devList = Array.isArray(devs) ? devs : Array.isArray(devs?.data) ? devs.data : [];
+      setMyDevices(devList);
 
       const parts = await api.participants();
-      const prodList = parts.filter((part) => part.role === 2 && !part.suspended);
+      const partList = Array.isArray(parts) ? parts : Array.isArray(parts?.data) ? parts.data : [];
+      const prodList = partList.filter((part) => part && part.role === 2 && !part.suspended);
       setProducers(prodList);
       if (prodList.length > 0 && !selectedProducer) {
         setSelectedProducer(prodList[0].address);
       }
     } catch (e) {
-      console.warn(e.message);
+      console.warn("ConsumerPortal load error:", e.message);
+      setMyDevices([]);
     }
   };
 

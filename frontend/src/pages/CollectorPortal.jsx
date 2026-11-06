@@ -17,27 +17,34 @@ export default function CollectorPortal() {
     try {
       // 1. Devices requesting pickup (status = 1)
       const pending = await api.devices({ status: 1 });
-      setPickupQueue(pending);
+      const pendingList = Array.isArray(pending) ? pending : Array.isArray(pending?.data) ? pending.data : [];
+      setPickupQueue(pendingList);
 
       // 2. Devices in my custody (status = 2)
       const allCollected = await api.devices({ status: 2 });
-      // In on-chain contract, custodian is tracked
+      const collectedList = Array.isArray(allCollected) ? allCollected : Array.isArray(allCollected?.data) ? allCollected.data : [];
       const c = readContract();
       const myCustody = [];
-      for (const d of allCollected) {
-        const onChain = await c.getDevice(d.id);
-        if (onChain.custodian.toLowerCase() === (address || "").toLowerCase()) {
-          myCustody.push({ ...d, custodian: onChain.custodian });
-        }
+      for (const d of collectedList) {
+        if (!d || !d.id) continue;
+        try {
+          const onChain = await c.getDevice(d.id);
+          if (onChain.custodian.toLowerCase() === (address || "").toLowerCase()) {
+            myCustody.push({ ...d, custodian: onChain.custodian });
+          }
+        } catch {}
       }
       setCustodyDevices(myCustody);
 
       // 3. Certified recyclers list
       const parts = await api.participants();
-      const recList = parts.filter((p) => p.role === 5 && !p.suspended);
+      const partList = Array.isArray(parts) ? parts : Array.isArray(parts?.data) ? parts.data : [];
+      const recList = partList.filter((p) => p && p.role === 5 && !p.suspended);
       setRecyclers(recList);
     } catch (e) {
-      console.warn(e.message);
+      console.warn("CollectorPortal load error:", e.message);
+      setPickupQueue([]);
+      setCustodyDevices([]);
     }
   };
 
